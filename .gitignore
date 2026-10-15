@@ -29,3 +29,7 @@ generated/
 
 # Built app packages (reproducible from source; see README for build steps)
 *.vpkg
+
+# Local demo video capture — stays local only, never committed/uploaded
+# per explicit instruction until the user reviews and approves it.
+evidence/video/

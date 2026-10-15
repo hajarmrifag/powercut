@@ -95,6 +95,50 @@ process never exits until the operator deliberately stops it.
 Neither blocked anything once corrected; noted here only because they cost
 real debugging time the first time.
 
+## 6. The emulator console can record video, but not while taking D-pad input through the normal path
+
+**Severity: medium — blocks a reasonable demo-recording workflow until worked around.**
+
+The same emulator console used for screenshots (§3) also supports
+`screenrecord start [--size|--bit-rate|--time-limit|--fps] <file>` and
+`screenrecord stop`, producing a native VP9/Vorbis WebM at the device's
+actual resolution (1920×1080 confirmed, no manual scaling needed) —
+this is the cleanest capture path found for this device, better than a
+window-capture tool. Two real problems were hit using it:
+
+- **A recording destination path containing a space fails** with
+  `KO: Must specify output file`, the same class of bug as §1 — the
+  console command parser splits on the space. **Workaround**: record to
+  a no-space path (e.g. `/private/tmp/...`) and copy the result into the
+  project afterward, same as the existing build workaround.
+- **While a `screenrecord` session is active, D-pad/Select input sent via
+  `vda shell inputd-cli button_press` does not reach the app at all.**
+  Confirmed by recording a full multi-step button sequence (open an
+  appliance, change its hours, navigate to another screen) and finding
+  the app's on-device state frozen at its starting point for the entire
+  78-second take — verified against both the recorded video (checked at
+  four different timestamps) and a live screenshot taken immediately
+  after stopping the recording, which showed the same unchanged state.
+  Re-running the identical `inputd-cli` sequence with no recording
+  active worked immediately and correctly. The emulator console's
+  lower-level raw input injection, `event send EV_KEY:<code>:1
+  EV_KEY:<code>:0`, **does** move D-pad focus (arrow keys) while a
+  recording is active — confirmed by recording a short clip, sending two
+  `KEY_RIGHT` press/release pairs via `event send`, and finding focus
+  correctly moved in the extracted frame. However, `event send` could
+  **not** be made to trigger Select/Enter activation during a recording:
+  `EV_KEY:KEY_ENTER`, `EV_KEY:KEY_SELECT`, `EV_KEY:KEY_OK`, and
+  `EV_KEY:KEY_CENTER` were all accepted by the console (`OK` response)
+  but none actually opened or activated anything on screen. **Workaround
+  used for this project's demo video**: record each on-screen state as
+  its own short clip with no input active during the recording; perform
+  all state-changing button presses via the reliable `inputd-cli` path
+  *between* recordings, with a console screenshot to verify each
+  resulting state before the next clip starts; assemble the clips in
+  post. This produces fully genuine, non-fabricated footage of every
+  state, at the cost of not showing the literal keypress animation
+  within a single continuous take.
+
 ## What did not turn out to be a Vega issue
 
 Two things initially suspected of being SDK problems were not, on
