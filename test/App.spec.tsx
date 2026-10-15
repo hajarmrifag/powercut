@@ -121,4 +121,133 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText(/Backend error:/)).toBeTruthy());
   });
+
+  // --- Priority 1: essential services are visibly marked ---
+
+  it('marks fridge and router as essential and leaves the other four unmarked', async () => {
+    mockFetchSequence([defaultsFixture, infeasibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('badge-essential-fridge'));
+    expect(screen.getByTestId('badge-essential-router')).toBeTruthy();
+    expect(screen.queryByTestId('badge-essential-lamp')).toBeNull();
+    expect(screen.queryByTestId('badge-essential-phone')).toBeNull();
+    expect(screen.queryByTestId('badge-essential-laptop')).toBeNull();
+    expect(screen.queryByTestId('badge-essential-fan')).toBeNull();
+  });
+
+  it("warns when the household's own edit has reduced an essential below full", async () => {
+    const reducedFridgeFixture = {
+      ...feasibleFixture,
+      requested: {...feasibleFixture.requested, critical_reduced: ['fridge']},
+    };
+    mockFetchSequence([defaultsFixture, reducedFridgeFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('badge-essential-fridge'));
+    expect(screen.getByTestId('badge-essential-fridge').props.children).toContain('⚠');
+    expect(screen.getByTestId('badge-essential-router').props.children).toContain('✓');
+  });
+
+  // --- Priority 1/2: repair tiers are shown and explained in plain language ---
+
+  it('shows the protects-essentials tier, stays-powered list and plain-language summary for each repair', async () => {
+    mockFetchSequence([defaultsFixture, infeasibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-alternatives'));
+    fireEvent.press(screen.getByTestId('tile-alternatives'));
+    expect(screen.getByTestId('alt-tier-A')).toBeTruthy();
+    expect(screen.getAllByText('✓ Protects essentials').length).toBe(2);
+    expect(screen.getAllByText(/Stays as requested:/).length).toBe(2);
+    expect(screen.getAllByText(/Keeps every essential service/).length).toBe(2);
+  });
+
+  it('shows the requires-compromise tier distinctly when a repair touches an essential service', async () => {
+    const compromiseFixture = {
+      ...infeasibleFixture,
+      alternatives: [
+        {
+          id: 'A',
+          tier: 'requires_compromise',
+          touches_critical: ['fridge'],
+          changed: [{id: 'fridge', from_hours: 12, to_hours: 8}],
+          stays_powered: ['router', 'lamp', 'phone', 'laptop', 'fan'],
+          label: 'fridge: 12h → 8h',
+          summary: 'No fix was possible without also reducing fridge. This repair reduces: fridge.',
+          problem: infeasibleFixture.alternatives[0].problem,
+          result: infeasibleFixture.alternatives[0].result,
+          independent_verification: infeasibleFixture.alternatives[0].independent_verification,
+          hours_removed: 4,
+        },
+      ],
+    };
+    mockFetchSequence([defaultsFixture, compromiseFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-alternatives'));
+    fireEvent.press(screen.getByTestId('tile-alternatives'));
+    expect(screen.getByText('⚠ Requires compromise')).toBeTruthy();
+    expect(screen.getByText(/No fix was possible without also reducing fridge/)).toBeTruthy();
+  });
+
+  // --- Priority 3: reliability ---
+
+  it('ignores a second press while a request is still in flight, instead of racing or dropping silently', async () => {
+    let resolveSecond: (() => void) | null = null;
+    let callCount = 0;
+    (globalThis as any).fetch = jest.fn(() => {
+      callCount += 1;
+      if (callCount <= 2) {
+        // initial /defaults + initial /plan resolve immediately
+        const body = callCount === 1 ? defaultsFixture : infeasibleFixture;
+        return Promise.resolve({ok: true, json: () => Promise.resolve(body)});
+      }
+      // the first user-triggered /plan call hangs until we release it
+      return new Promise(resolve => {
+        resolveSecond = () => resolve({ok: true, json: () => Promise.resolve(infeasibleFixture)});
+      });
+    });
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-appliance-fan'));
+    fireEvent.press(screen.getByTestId('tile-appliance-fan'));
+    await waitFor(() => screen.getByTestId('btn-hours-plus'));
+
+    fireEvent.press(screen.getByTestId('btn-hours-plus')); // triggers the hanging 3rd call
+    expect(callCount).toBe(3);
+    fireEvent.press(screen.getByTestId('btn-hours-plus')); // must be ignored: still in flight
+    fireEvent.press(screen.getByTestId('btn-hours-plus')); // also ignored
+    expect(callCount).toBe(3); // no 4th or 5th call was made while loading
+
+    resolveSecond!();
+    await waitFor(() => expect(screen.getByTestId('appliance-edit-status')).toBeTruthy());
+    // now that the in-flight request resolved, a further press is accepted again
+    fireEvent.press(screen.getByTestId('btn-hours-plus'));
+    await waitFor(() => expect(callCount).toBe(4));
+  });
+
+  it('surfaces a recalculation error on the appliance edit screen itself, not only the overview', async () => {
+    let shouldFail = false;
+    let calls = 0;
+    (globalThis as any).fetch = jest.fn(() => {
+      calls += 1;
+      if (shouldFail) {
+        return Promise.reject(new Error('mid-edit network failure'));
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(calls === 1 ? defaultsFixture : infeasibleFixture),
+      });
+    });
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-appliance-fan'));
+    fireEvent.press(screen.getByTestId('tile-appliance-fan'));
+    await waitFor(() => screen.getByTestId('btn-hours-plus'));
+    shouldFail = true;
+    fireEvent.press(screen.getByTestId('btn-hours-plus'));
+    await waitFor(() => expect(screen.getByTestId('status-error')).toBeTruthy());
+    expect(screen.getByTestId('status-error').props.children).toContain('mid-edit network failure');
+  });
+
+  // Note: hardware Back itself (useKeplerBackHandler) is inert under the
+  // Kepler Jest preset's own mock (addEventListener records a callback but
+  // never invokes it), so the Back -> focus-restoration path cannot be
+  // meaningfully exercised here -- it is verified on the real Vega Virtual
+  // Device instead (see evidence/screenshots/phase3/).
 });

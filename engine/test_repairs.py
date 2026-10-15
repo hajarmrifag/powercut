@@ -1,12 +1,51 @@
-"""Unit tests for the dynamic repair search (repairs.py), independent of the
-HTTP layer. Runs standalone, in the style of run_experiment.py.
+"""Unit and adversarial tests for the dynamic repair search (repairs.py),
+independent of the HTTP layer. Runs standalone, in the style of
+run_experiment.py.
 """
 import copy
+import random
+from itertools import product
 
 from run_experiment import fixture
-from repairs import find_repairs
+from repairs import CRITICAL_IDS, find_repairs, _single_appliance_repairs, _two_appliance_repairs
 from solver import solve
 from verifier import check
+
+
+def brute_force_min_pair_sacrifice(problem, id_a, id_b):
+    """Independent, unoptimized oracle: try every (hours_a, hours_b) pair in
+    their full ranges and return the minimum total hours removed among the
+    feasible ones, by calling solve() directly -- no binary search, no
+    reuse of repairs.py's own logic. Used to prove _two_appliance_repairs
+    is not just *a* feasible answer but the true minimum."""
+    originals = {a['id']: a['required_hours'] for a in problem['appliances']}
+    orig_a, orig_b = originals[id_a], originals[id_b]
+    best = None
+    for hours_a, hours_b in product(range(orig_a + 1), range(orig_b + 1)):
+        candidate = copy.deepcopy(problem)
+        for a in candidate['appliances']:
+            if a['id'] == id_a:
+                a['required_hours'] = hours_a
+            if a['id'] == id_b:
+                a['required_hours'] = hours_b
+        if solve(candidate)['feasible']:
+            removed = (orig_a - hours_a) + (orig_b - hours_b)
+            if best is None or removed < best:
+                best = removed
+    return best
+
+
+def brute_force_min_single_sacrifice(problem, appliance_id):
+    originals = {a['id']: a['required_hours'] for a in problem['appliances']}
+    original = originals[appliance_id]
+    for hours in range(original, -1, -1):  # descending: first feasible = max hours = min sacrifice
+        candidate = copy.deepcopy(problem)
+        for a in candidate['appliances']:
+            if a['id'] == appliance_id:
+                a['required_hours'] = hours
+        if solve(candidate)['feasible']:
+            return original - hours
+    return None
 
 
 def main():
@@ -16,7 +55,7 @@ def main():
     assert find_repairs(fixture(8)) == []
     checks.append('feasible problem: find_repairs returns []')
 
-    # --- default infeasible scenario: matches known-good minimal-sacrifice repairs ---
+    # --- default infeasible scenario: both repairs protect essentials ---
     p = fixture(12)
     assert not solve(p)['feasible']
     repairs = find_repairs(p)
@@ -26,23 +65,21 @@ def main():
         assert check(r['problem'], r['result']['schedule'])['valid']
         assert r['independent_verification']['valid']
         assert r['hours_removed'] > 0
-    # least-sacrifice-first ranking
+        assert r['tier'] == 'protects_essentials', r
+        assert r['touches_critical'] == [], r
+        assert not CRITICAL_IDS & {c['id'] for c in r['changed']}
     assert repairs[0]['hours_removed'] <= repairs[1]['hours_removed']
-    # known minimal single-change fixes for this exact fixture
     found = {frozenset(c['id'] for c in r['changed']) for r in repairs}
-    assert found == {frozenset(['fridge']), frozenset(['laptop'])}, found
-    laptop_repair = next(r for r in repairs if r['changed'][0]['id'] == 'laptop')
-    assert laptop_repair['changed'][0]['to_hours'] == 1  # matches Phase 1's known-good laptop repair
-    assert laptop_repair['result']['energy_wh'] == 1778
-    checks.append('default scenario: 2 minimal-sacrifice repairs matching known-good values')
+    assert found == {frozenset(['laptop']), frozenset(['fan'])}, found
+    checks.append('default scenario: 2 essentials-protecting repairs, correctly tagged')
 
-    # --- every changed appliance in a repair is only ever reduced, never raised ---
+    # --- repairs only ever reduce, never raise, required_hours ---
     for r in repairs:
         for c in r['changed']:
             assert c['to_hours'] < c['from_hours']
     checks.append('repairs only ever reduce required_hours, never raise it')
 
-    # --- appliances untouched by a repair keep their original hours exactly ---
+    # --- untouched appliances keep their exact original hours ---
     for r in repairs:
         changed_ids = {c['id'] for c in r['changed']}
         originals = {a['id']: a['required_hours'] for a in p['appliances']}
@@ -51,22 +88,78 @@ def main():
                 assert appliance['required_hours'] == originals[appliance['id']]
     checks.append('repairs leave every unrelated appliance exactly as requested')
 
-    # --- extreme, truly-impossible capacity: no repair is fabricated ---
+    # --- ADVERSARIAL: single-appliance search finds the true minimum sacrifice ---
+    for appliance_id in ('fridge', 'router', 'lamp', 'phone', 'laptop', 'fan'):
+        found = _single_appliance_repairs(p, {appliance_id})
+        expected = brute_force_min_single_sacrifice(p, appliance_id)
+        if expected is None or expected == 0:
+            assert found == [], (appliance_id, found)
+        else:
+            assert len(found) == 1, (appliance_id, found)
+            assert found[0]['hours_removed'] == expected, (appliance_id, found[0], expected)
+    checks.append('ADVERSARIAL: single-appliance search matches brute-force minimum for all 6 appliances')
+
+    # --- ADVERSARIAL: two-appliance search finds the true minimum joint sacrifice ---
+    # This specifically targets the Phase 2 bug: a search that only zeroes the
+    # first appliance before maximizing the second can miss the true minimum
+    # when the cheaper direction is to zero the *other* one first.
+    rng = random.Random(20261015)
+    pairs_checked = 0
+    for id_a, id_b in [('laptop', 'fan'), ('phone', 'laptop'), ('lamp', 'fan'), ('fridge', 'laptop')]:
+        base = fixture(12)
+        max_wh = {a['id']: a['high_w'] * a['required_hours'] for a in base['appliances']}
+        pair_ceiling = max_wh[id_a] + max_wh[id_b]
+        for trial in range(3):
+            # Pick a capacity strictly below what the pair could draw at full
+            # hours, so the pair alone is guaranteed infeasible -- varying
+            # just enough headroom per trial to exercise different points on
+            # the feasibility frontier, not just the fully-zeroed extreme.
+            usable_wh = max(50, pair_ceiling - rng.randint(1, max(1, pair_ceiling - 10)))
+            adversarial = fixture(12, usable_wh, rng.randint(140, 220))
+            for a in adversarial['appliances']:
+                if a['id'] not in (id_a, id_b):
+                    a['required_hours'] = 0  # isolate the pair's own frontier
+            assert not solve(adversarial)['feasible'], (id_a, id_b, trial, usable_wh)
+            found = _two_appliance_repairs(adversarial, {id_a, id_b})
+            expected = brute_force_min_pair_sacrifice(adversarial, id_a, id_b)
+            pairs_checked += 1
+            if expected is None:
+                assert found == [], (id_a, id_b, found)
+            else:
+                assert len(found) == 1, (id_a, id_b, trial, found)
+                assert found[0]['hours_removed'] == expected, \
+                    (id_a, id_b, trial, found[0]['hours_removed'], expected)
+    assert pairs_checked >= 10, 'adversarial pair search should have exercised multiple scenarios'
+    checks.append(f'ADVERSARIAL: two-appliance search matches brute-force minimum ({pairs_checked} scenarios)')
+
+    # --- essentials are only touched when no essentials-preserving repair exists ---
+    forced = fixture(12, usable_wh=1000, max_w=200)
+    for a in forced['appliances']:
+        if a['id'] not in CRITICAL_IDS:
+            a['required_hours'] = 0
+    assert not solve(forced)['feasible']
+    forced_repairs = find_repairs(forced)
+    assert len(forced_repairs) >= 1
+    for r in forced_repairs:
+        assert r['tier'] == 'requires_compromise'
+        assert set(r['touches_critical']) & CRITICAL_IDS
+        assert set(c['id'] for c in r['changed']) & CRITICAL_IDS
+    checks.append('essentials are only compromised when no essentials-preserving repair exists')
+
+    # --- a scenario where BOTH tiers exist: essentials-preserving must win ---
+    both_exist = fixture(12)
+    for a in both_exist['appliances']:
+        if a['id'] == 'fridge':
+            a['required_hours'] = 12  # cheap to shrink and would look attractive by hours alone
+    assert not solve(both_exist)['feasible']
+    mixed_repairs = find_repairs(both_exist)
+    assert all(r['tier'] == 'protects_essentials' for r in mixed_repairs), mixed_repairs
+    checks.append('when an essentials-preserving repair exists, no compromise repair is ever offered')
+
+    # --- truly impossible capacity: no repair is fabricated ---
     impossible = fixture(12, usable_wh=100, max_w=200)
     assert find_repairs(impossible) == []
     checks.append('truly impossible capacity (100 Wh): no repair fabricated')
-
-    # --- a scenario needing a two-appliance repair ---
-    two_change = fixture(12)
-    for a in two_change['appliances']:
-        if a['id'] == 'phone':
-            a['required_hours'] = 2  # widen the gap enough that no single change suffices
-    assert not solve(two_change)['feasible']
-    repairs2 = find_repairs(two_change)
-    assert len(repairs2) >= 1
-    for r in repairs2:
-        assert r['independent_verification']['valid']
-    checks.append('a harder scenario still returns independently-verified repairs')
 
     # --- idempotence / no mutation of the input problem ---
     original_copy = copy.deepcopy(p)

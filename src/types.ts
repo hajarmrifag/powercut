@@ -4,6 +4,7 @@ export type Appliance = {
   high_w: number;
   required_hours: number;
   allowed_hours: number[];
+  critical?: boolean;
 };
 
 export type Problem = {
@@ -56,14 +57,21 @@ export type Requested = {
   explanation: string | null;
   independent_verification: Verification;
   requested_wh: number;
+  critical_reduced: string[];
 };
 
 export type ChangedAppliance = {id: string; from_hours: number; to_hours: number};
 
+export type RepairTier = 'protects_essentials' | 'requires_compromise';
+
 export type Alternative = {
   id: string;
+  tier: RepairTier;
+  touches_critical: string[];
   changed: ChangedAppliance[];
+  stays_powered: string[];
   label: string;
+  summary: string;
   problem: Problem;
   result: SolveResult;
   independent_verification: Verification;
@@ -80,6 +88,7 @@ export type Plan = {
   outage_hours: number;
   budget_wh: number;
   max_w: number;
+  critical_ids: string[];
   limits: string;
   requested: Requested;
   alternatives: Alternative[];
@@ -91,6 +100,7 @@ export type Defaults = {
   outage_hours: number;
   usable_wh: number;
   max_w: number;
+  critical_ids: string[];
   appliances: Appliance[];
 };
 

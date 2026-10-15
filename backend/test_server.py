@@ -5,7 +5,8 @@ Runs standalone (no pytest, no server process) against the handler's own
 pure functions, matching the style of engine/run_experiment.py. Exits
 non-zero (via assert) on any failure.
 """
-from server import validate_request, build_plan, InputError, OUTAGE_HOURS
+from server import validate_request, build_plan, default_config, InputError, OUTAGE_HOURS
+from repairs import CRITICAL_IDS
 
 
 def expect_rejected(data, label):
@@ -98,6 +99,41 @@ def main():
                 original = next(a for a in all_appliances() if a['id'] == appliance['id'])
                 assert appliance['required_hours'] == original['required_hours']
     checks.append('alternative problems only change the appliances listed in `changed`')
+
+    # --- /defaults marks fridge and router as critical, nothing else ---
+    cfg = default_config()
+    assert set(cfg['critical_ids']) == CRITICAL_IDS
+    for a in cfg['appliances']:
+        assert a['critical'] == (a['id'] in CRITICAL_IDS), a
+    checks.append('/defaults marks exactly fridge and router as critical')
+
+    # --- default scenario's repairs protect essentials and say so ---
+    plan = build_plan(1800, 200, {a['id']: a['required_hours'] for a in all_appliances()})
+    assert plan['requested']['critical_reduced'] == []
+    for alt in plan['alternatives']:
+        assert alt['tier'] == 'protects_essentials'
+        assert alt['touches_critical'] == []
+        changed_ids = {c['id'] for c in alt['changed']}
+        assert changed_ids <= {'fridge', 'router', 'lamp', 'phone', 'laptop', 'fan'} - CRITICAL_IDS
+        assert 'fridge' in alt['stays_powered'] and 'router' in alt['stays_powered']
+        assert 'Keeps every essential service' in alt['summary']
+    checks.append('default scenario: repairs protect essentials and say so in plain language')
+
+    # --- when no essentials-preserving repair exists, the compromise is explained ---
+    forced = build_plan(1000, 200, {a['id']: (12 if a['id'] in ('fridge', 'router') else 0)
+                                     for a in all_appliances()})
+    assert not forced['requested']['result']['feasible']
+    assert len(forced['alternatives']) >= 1
+    for alt in forced['alternatives']:
+        assert alt['tier'] == 'requires_compromise'
+        assert alt['touches_critical'], alt
+        assert 'usually protected by default' in alt['summary']
+    checks.append('forced-compromise scenario: tier and summary correctly explain the trade-off')
+
+    # --- a household's own reduction of an essential is reported, not hidden ---
+    self_reduced = build_plan(1800, 200, {a['id']: a['required_hours'] for a in all_appliances(fridge=6)})
+    assert self_reduced['requested']['critical_reduced'] == ['fridge']
+    checks.append("a household's own reduction of fridge/router below full is surfaced via critical_reduced")
 
     print('PASS:', len(checks), 'checks')
     for c in checks:

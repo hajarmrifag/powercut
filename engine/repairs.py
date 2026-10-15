@@ -1,18 +1,45 @@
 """Dynamic repair search for infeasible, user-edited household configurations.
 
 Phase 1 offered two hardcoded alternatives (reduce fan, or reduce laptop) for
-one fixed scenario. This module generalizes that idea to any appliance
-combination and any user-edited required_hours / battery capacity: it only
-ever proposes *reducing* required_hours (never raising power limits or
-inventing new appliances), searches for the smallest sacrifice that restores
-feasibility, and independently re-verifies every candidate with
-verifier.check before returning it. Nothing here is returned without that
-verification passing.
+one fixed scenario. Phase 2 generalized that to any appliance combination,
+but its two-appliance search only explored one path across the feasibility
+frontier (zero the first appliance, maximize the second, relax the first
+back up), which is not guaranteed to find the true minimum-sacrifice pair.
+This version fixes that: for a given pair of appliances it enumerates every
+value of the first appliance's hours and binary-searches the best matching
+value of the second, so the result is the true minimum total service-hours
+removed achievable by changing exactly those two appliances -- not just a
+value better than before.
+
+It only ever proposes *reducing* required_hours (never raising power limits
+or inventing new appliances), and independently re-verifies every candidate
+with verifier.check before returning it. Nothing here is returned without
+that verification passing.
+
+OPTIMALITY SCOPE: within a search restricted to changing at most two
+appliances at once, every repair returned is the exact minimum-sacrifice
+choice for its particular set of changed appliances (proven by exhaustive
+enumeration for the pair case, and by binary search under the solver's
+monotonic-in-required-hours property for the single case -- see
+test_repairs.py for an adversarial brute-force check of both). This module
+does NOT search three-or-more-simultaneous-appliance changes, so "no repair
+found" means none exists within one or two changes, not that the problem is
+unfixable by any repair -- find_repairs never claims global optimality
+beyond its stated one-or-two-appliance scope, and callers should not either.
+
+PROTECTED SERVICES: fridge (food safety) and router (basic connectivity) are
+treated as critical by default and are only touched by the automatic repair
+search if no repair exists that leaves them untouched. This governs the
+*search* only -- a household's own direct edit to either appliance's
+required_hours (made through the UI) is never overridden by this module.
 """
 import copy
+from itertools import combinations
 
 from solver import solve
 from verifier import check
+
+CRITICAL_IDS = frozenset({'fridge', 'router'})
 
 
 def _with_required_hours(problem, overrides):
@@ -31,7 +58,7 @@ def _maximum_feasible_hours(problem, appliance_id, ceiling, fixed_overrides=None
     hours at `fixed_overrides` (or their current value in `problem` if not
     given). This is the smallest possible sacrifice for that appliance.
     Feasibility is monotonic in required_hours (fewer required hours never
-    makes a schedule harder to fit), so a standard binary search applies.
+    makes a schedule harder to fit), so a standard binary search is exact.
     Returns None if even 0 hours is still infeasible."""
     fixed_overrides = dict(fixed_overrides or {})
     lo, hi, best = 0, ceiling, None
@@ -72,12 +99,14 @@ def _verified_candidate(problem, changes):
     }
 
 
-def _single_appliance_repairs(problem):
+def _single_appliance_repairs(problem, allowed_ids):
+    """Exact: for each appliance in allowed_ids, the single largest required-
+    hours value that alone restores feasibility, all others held fixed."""
     candidates = []
     for appliance in problem['appliances']:
-        original = appliance['required_hours']
-        if original <= 0:
+        if appliance['id'] not in allowed_ids or appliance['required_hours'] <= 0:
             continue
+        original = appliance['required_hours']
         reduced = _maximum_feasible_hours(problem, appliance['id'], original)
         if reduced is None or reduced == original:
             continue
@@ -87,43 +116,95 @@ def _single_appliance_repairs(problem):
     return candidates
 
 
-def _two_appliance_repairs(problem):
-    ids = [a['id'] for a in problem['appliances'] if a['required_hours'] > 0]
+def _two_appliance_repairs(problem, allowed_ids):
+    """Exact minimum joint sacrifice for every pair within allowed_ids: for
+    every possible value of the first appliance's hours, binary-search the
+    best matching value of the second, and keep whichever point on that
+    frontier removes the fewest total hours. This enumerates the whole
+    feasibility frontier for the pair rather than one path across it.
+
+    The minimum total removed is mathematically the same whichever of the
+    two appliances is scanned (feasibility is monotonic in each, holding
+    the other fixed, so a full scan of either axis traces the entire
+    frontier). But the frontier can contain several points tied at that
+    same minimum total -- including a "degenerate" point where the second
+    appliance doesn't need to move at all, which is really a single-
+    appliance repair in disguise. Scanning only one axis picks whichever
+    tied point that axis happens to reach, which is arbitrary. So both
+    axes are scanned and, among points tied at the true minimum, the one
+    touching fewer appliances is kept -- a strictly simpler repair for a
+    household to act on, and a deterministic, order-independent choice
+    rather than one that depends on dict/set iteration order."""
     originals = {a['id']: a['required_hours'] for a in problem['appliances']}
+    ids = [aid for aid in allowed_ids if originals.get(aid, 0) > 0]
     candidates = []
-    for i, id_a in enumerate(ids):
-        for id_b in ids[i + 1:]:
-            max_b = _maximum_feasible_hours(
-                problem, id_b, originals[id_b], fixed_overrides={id_a: 0})
-            if max_b is None:
-                continue
-            max_a = _maximum_feasible_hours(
-                problem, id_a, originals[id_a], fixed_overrides={id_b: max_b})
-            if max_a is None:
-                max_a = 0
-            repair = _verified_candidate(problem, {id_a: max_a, id_b: max_b})
-            if repair is not None:
-                candidates.append(repair)
+    for id_a, id_b in combinations(ids, 2):
+        orig_a, orig_b = originals[id_a], originals[id_b]
+        frontier = []
+        for scan_id, scan_ceiling, other_id, other_ceiling in (
+                (id_a, orig_a, id_b, orig_b), (id_b, orig_b, id_a, orig_a)):
+            for scan_hours in range(scan_ceiling + 1):
+                other_hours = _maximum_feasible_hours(
+                    problem, other_id, other_ceiling, fixed_overrides={scan_id: scan_hours})
+                if other_hours is None:
+                    continue
+                removed = (scan_ceiling - scan_hours) + (other_ceiling - other_hours)
+                touched = (scan_hours < scan_ceiling) + (other_hours < other_ceiling)
+                frontier.append((removed, touched, {scan_id: scan_hours, other_id: other_hours}))
+        if not frontier:
+            continue
+        _, _, changes = min(frontier, key=lambda point: (point[0], point[1]))
+        repair = _verified_candidate(problem, changes)
+        if repair is not None:
+            candidates.append(repair)
+    return candidates
+
+
+def _rank(candidates):
+    candidates.sort(key=lambda c: (c['hours_removed'], len(c['changed'])))
     return candidates
 
 
 def find_repairs(problem, max_results=2):
     """Up to max_results distinct, independently-verified feasible repairs
-    for an infeasible problem, ranked by least total service hours removed
-    (fewest appliances touched as a tiebreaker). Returns [] if the problem
-    is already feasible, or if no repair was found within one or two
-    simultaneous appliance reductions."""
+    for an infeasible problem, ranked by least total service hours removed.
+    Returns [] if the problem is already feasible, or if no repair exists
+    within one or two simultaneous appliance reductions.
+
+    Each result is tagged:
+      tier='protects_essentials' -- feasible without touching fridge/router.
+      tier='requires_compromise' -- only feasible by also reducing fridge
+        and/or router; 'touches_critical' names which ones.
+    protects_essentials repairs are always preferred and listed first;
+    requires_compromise repairs are only included to fill remaining slots
+    when fewer than max_results essentials-preserving repairs exist.
+    """
     if solve(problem)['feasible']:
         return []
-    candidates = _single_appliance_repairs(problem) + _two_appliance_repairs(problem)
-    candidates.sort(key=lambda c: (c['hours_removed'], len(c['changed'])))
+    all_ids = {a['id'] for a in problem['appliances']}
+    flexible_ids = all_ids - CRITICAL_IDS
+
+    def tagged(allowed_ids, tier):
+        found = _rank(_single_appliance_repairs(problem, allowed_ids) +
+                       _two_appliance_repairs(problem, allowed_ids))
+        for c in found:
+            c['tier'] = tier
+            c['touches_critical'] = sorted({x['id'] for x in c['changed']} & CRITICAL_IDS)
+        return found
+
+    def take(candidates, results, seen):
+        for c in candidates:
+            key = frozenset(x['id'] for x in c['changed'])
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(c)
+            if len(results) >= max_results:
+                return True
+        return False
+
     results, seen = [], set()
-    for candidate in candidates:
-        key = frozenset(c['id'] for c in candidate['changed'])
-        if key in seen:
-            continue
-        seen.add(key)
-        results.append(candidate)
-        if len(results) >= max_results:
-            break
+    if take(tagged(flexible_ids, 'protects_essentials'), results, seen):
+        return results
+    take(tagged(all_ids, 'requires_compromise'), results, seen)
     return results

@@ -88,6 +88,20 @@ export const App = () => {
     return appliances.find(a => a.id === id)?.required_hours ?? 0;
   }
 
+  // Every button that triggers a recompute is routed through here. While a
+  // request is in flight, further presses are ignored rather than silently
+  // queued or allowed to race -- the "Saving…" indicator shown on every
+  // screen makes that state visible instead of leaving a press to appear to
+  // do nothing. Navigation-only presses (opening/leaving a screen) are not
+  // guarded, since they don't touch backend state.
+  function guard(action: () => void) {
+    return () => {
+      if (!loading) {
+        action();
+      }
+    };
+  }
+
   function setApplianceHours(id: string, hours: number) {
     const info = applianceInfo?.[id];
     const bounded = clamp(hours, 0, OUTAGE_HOURS);
@@ -119,6 +133,19 @@ export const App = () => {
     });
     recompute(next, usableWh, maxW);
     setPage('overview');
+  }
+
+  function renderStatusLine() {
+    if (!error && !loading) {
+      return null;
+    }
+    return (
+      <Text
+        style={error ? styles.errorText : styles.loadingText}
+        testID={error ? 'status-error' : 'status-loading'}>
+        {error ? 'Backend error: ' + error : 'Saving…'}
+      </Text>
+    );
   }
 
   const feasible = plan?.requested.result.feasible ?? null;
@@ -167,25 +194,39 @@ export const App = () => {
               ]}
             />
           </View>
-          {error && <Text style={styles.errorText}>Backend error: {error}</Text>}
-          {loading && <Text style={styles.loadingText}>Recalculating…</Text>}
+          {renderStatusLine()}
         </View>
 
         <TVFocusGuideView style={styles.applianceRow} autoFocus>
           {APPLIANCE_IDS.map((id, i) => {
             const info = applianceInfo?.[id];
+            const isCritical = !!info?.critical;
+            const wasReduced = plan?.requested.critical_reduced.includes(id);
             return (
               <Pressable
                 key={id}
                 testID={`tile-appliance-${id}`}
                 hasTVPreferredFocus={i === 0}
-                accessibilityLabel={`${applianceLabel[id]}, ${hoursFor(id)} hours`}
+                accessibilityLabel={
+                  `${applianceLabel[id]}, ${hoursFor(id)} hours` +
+                  (isCritical ? ', essential service' : '') +
+                  (wasReduced ? ', reduced below full' : '')
+                }
                 onFocus={() => setFocus(id)}
                 onPress={() => {
                   setEditingId(id);
                   setPage('editAppliance');
                 }}
-                style={[styles.applianceCard, focus === id && styles.cardFocused]}>
+                style={[
+                  styles.applianceCard,
+                  isCritical && styles.applianceCardCritical,
+                  focus === id && styles.cardFocused,
+                ]}>
+                {isCritical && (
+                  <Text style={styles.essentialBadge} testID={`badge-essential-${id}`}>
+                    {wasReduced ? '⚠ essential' : '✓ essential'}
+                  </Text>
+                )}
                 <Text style={styles.applianceIcon}>{applianceIcon[id]}</Text>
                 <Text style={styles.applianceName}>{applianceLabel[id]}</Text>
                 <Text style={styles.applianceHours}>{hoursFor(id)}h</Text>
@@ -223,7 +264,7 @@ export const App = () => {
             testID="tile-reset"
             accessibilityLabel="Reset to default plan"
             onFocus={() => setFocus('reset')}
-            onPress={resetToDefault}
+            onPress={guard(resetToDefault)}
             style={[styles.actionCard, focus === 'reset' && styles.cardFocused]}>
             <Text style={styles.actionIcon}>↺</Text>
             <Text style={styles.applianceName}>Reset to default</Text>
@@ -243,14 +284,24 @@ export const App = () => {
     const info = applianceInfo?.[editingId];
     const hours = hoursFor(editingId);
     const windowLen = info ? new Set(info.allowed_hours).size : OUTAGE_HOURS;
+    const isCritical = !!info?.critical;
     return (
       <View style={styles.screen} testID="screen-edit-appliance">
         <Text style={styles.title}>
           {applianceIcon[editingId]} {applianceLabel[editingId]}
+          {isCritical ? '  ·  essential service' : ''}
         </Text>
         <Text style={styles.subtitle}>
           {info ? `${info.low_w}-${info.high_w} W · available ${windowLen}h of this outage` : ''}
         </Text>
+        {isCritical && (
+          <Text style={styles.paragraph} testID="essential-note">
+            Fridge and router are protected by default: the automatic repair
+            search won't reduce them unless no other fix exists. Changing it
+            here is your own choice and is always respected.
+          </Text>
+        )}
+        {renderStatusLine()}
         <Text style={styles.bigValue} testID="appliance-hours-value">{hours}h required</Text>
         <TVFocusGuideView style={styles.stepperRow} autoFocus>
           <Pressable
@@ -258,7 +309,7 @@ export const App = () => {
             hasTVPreferredFocus
             accessibilityLabel="Decrease by 1 hour"
             onFocus={() => setFocus('minus')}
-            onPress={() => setApplianceHours(editingId, hours - 1)}
+            onPress={guard(() => setApplianceHours(editingId, hours - 1))}
             style={[styles.stepperButton, focus === 'minus' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>− 1h</Text>
           </Pressable>
@@ -266,7 +317,7 @@ export const App = () => {
             testID="btn-hours-plus"
             accessibilityLabel="Increase by 1 hour"
             onFocus={() => setFocus('plus')}
-            onPress={() => setApplianceHours(editingId, hours + 1)}
+            onPress={guard(() => setApplianceHours(editingId, hours + 1))}
             style={[styles.stepperButton, focus === 'plus' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>+ 1h</Text>
           </Pressable>
@@ -274,7 +325,7 @@ export const App = () => {
             testID="btn-hours-zero"
             accessibilityLabel="Turn off"
             onFocus={() => setFocus('zero')}
-            onPress={() => setApplianceHours(editingId, 0)}
+            onPress={guard(() => setApplianceHours(editingId, 0))}
             style={[styles.stepperButton, focus === 'zero' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>Off</Text>
           </Pressable>
@@ -300,6 +351,7 @@ export const App = () => {
       <View style={styles.screen} testID="screen-edit-battery">
         <Text style={styles.title}>🔋 Battery</Text>
         <Text style={styles.subtitle}>Usable capacity and output limit for this outage</Text>
+        {renderStatusLine()}
 
         <Text style={styles.bigValue} testID="battery-wh-value">{usableWh} Wh</Text>
         <TVFocusGuideView style={styles.stepperRow} autoFocus>
@@ -308,7 +360,7 @@ export const App = () => {
             hasTVPreferredFocus
             accessibilityLabel="Decrease capacity by 100 watt hours"
             onFocus={() => setFocus('wh-minus')}
-            onPress={() => setBattery(usableWh - 100, maxW)}
+            onPress={guard(() => setBattery(usableWh - 100, maxW))}
             style={[styles.stepperButton, focus === 'wh-minus' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>− 100 Wh</Text>
           </Pressable>
@@ -316,7 +368,7 @@ export const App = () => {
             testID="btn-wh-plus"
             accessibilityLabel="Increase capacity by 100 watt hours"
             onFocus={() => setFocus('wh-plus')}
-            onPress={() => setBattery(usableWh + 100, maxW)}
+            onPress={guard(() => setBattery(usableWh + 100, maxW))}
             style={[styles.stepperButton, focus === 'wh-plus' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>+ 100 Wh</Text>
           </Pressable>
@@ -328,7 +380,7 @@ export const App = () => {
             testID="btn-w-minus"
             accessibilityLabel="Decrease output limit by 10 watts"
             onFocus={() => setFocus('w-minus')}
-            onPress={() => setBattery(usableWh, maxW - 10)}
+            onPress={guard(() => setBattery(usableWh, maxW - 10))}
             style={[styles.stepperButton, focus === 'w-minus' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>− 10 W</Text>
           </Pressable>
@@ -336,7 +388,7 @@ export const App = () => {
             testID="btn-w-plus"
             accessibilityLabel="Increase output limit by 10 watts"
             onFocus={() => setFocus('w-plus')}
-            onPress={() => setBattery(usableWh, maxW + 10)}
+            onPress={guard(() => setBattery(usableWh, maxW + 10))}
             style={[styles.stepperButton, focus === 'w-plus' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>+ 10 W</Text>
           </Pressable>
@@ -365,6 +417,7 @@ export const App = () => {
       <ScrollView style={styles.screen} testID="screen-alternatives">
         <Text style={styles.title}>Why this doesn't fit</Text>
         <Text style={styles.paragraph}>{plan.requested.explanation}</Text>
+        {renderStatusLine()}
 
         <Text style={styles.sectionTitle}>Pick a verified alternative</Text>
         {plan.alternatives.length === 0 && (
@@ -374,34 +427,52 @@ export const App = () => {
           </Text>
         )}
         <TVFocusGuideView style={styles.alternativesRow} autoFocus>
-          {plan.alternatives.map((alt, i) => (
-            <Pressable
-              key={alt.id}
-              testID={`alt-card-${alt.id}`}
-              hasTVPreferredFocus={i === 0}
-              accessibilityLabel={`Alternative ${alt.id}: ${alt.label}`}
-              onFocus={() => setFocus('alt-' + alt.id)}
-              onPress={() => applyAlternative(alt)}
-              style={[styles.altCard, focus === 'alt-' + alt.id && styles.cardFocused]}>
-              <Text style={styles.altTitle}>Alternative {alt.id}</Text>
-              <Text style={styles.altChange}>{alt.label}</Text>
-              <Text style={styles.altStat}>
-                {alt.result.energy_wh} Wh used · {alt.result.remaining_wh} Wh left · peak{' '}
-                {alt.result.peak_w} W
-              </Text>
-              <Text
-                style={[
-                  styles.altVerified,
-                  {color: alt.independent_verification?.valid ? colors.feasible : colors.infeasible},
-                ]}>
-                {alt.independent_verification?.valid
-                  ? '✓ Independently verified'
-                  : '✗ verification failed'}
-              </Text>
-              <Text style={styles.altApply}>Select to apply</Text>
-            </Pressable>
-          ))}
+          {plan.alternatives.map((alt, i) => {
+            const protects = alt.tier === 'protects_essentials';
+            return (
+              <Pressable
+                key={alt.id}
+                testID={`alt-card-${alt.id}`}
+                hasTVPreferredFocus={i === 0}
+                accessibilityLabel={`Alternative ${alt.id}: ${alt.summary}`}
+                onFocus={() => setFocus('alt-' + alt.id)}
+                onPress={guard(() => applyAlternative(alt))}
+                style={[styles.altCard, focus === 'alt-' + alt.id && styles.cardFocused]}>
+                <View
+                  style={[
+                    styles.tierBadge,
+                    {backgroundColor: protects ? colors.feasibleDim : colors.infeasibleDim},
+                  ]}
+                  testID={`alt-tier-${alt.id}`}>
+                  <Text style={[styles.tierBadgeText, {color: protects ? colors.feasible : colors.infeasible}]}>
+                    {protects ? '✓ Protects essentials' : '⚠ Requires compromise'}
+                  </Text>
+                </View>
+                <Text style={styles.altTitle}>Alternative {alt.id}</Text>
+                <Text style={styles.altChange}>Reduces: {alt.label}</Text>
+                <Text style={styles.altStaysPowered}>
+                  Stays as requested: {alt.stays_powered.map(id => applianceLabel[id] ?? id).join(', ')}
+                </Text>
+                <Text style={styles.altSummary}>{alt.summary}</Text>
+                <Text style={styles.altStat}>
+                  {alt.result.energy_wh} Wh used · {alt.result.remaining_wh} Wh left · peak{' '}
+                  {alt.result.peak_w} W
+                </Text>
+                <Text
+                  style={[
+                    styles.altVerified,
+                    {color: alt.independent_verification?.valid ? colors.feasible : colors.infeasible},
+                  ]}>
+                  {alt.independent_verification?.valid
+                    ? '✓ Independently verified'
+                    : '✗ verification failed'}
+                </Text>
+                <Text style={styles.altApply}>Select to apply</Text>
+              </Pressable>
+            );
+          })}
         </TVFocusGuideView>
+        <Text style={styles.footer}>{plan.limits}</Text>
         <Text style={styles.footerHint}>Press Back to return to the overview</Text>
       </ScrollView>
     );
@@ -453,6 +524,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
   },
+  applianceCardCritical: {borderColor: colors.accentDim},
+  essentialBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 6,
+    fontSize: 10,
+    color: colors.accent,
+    fontWeight: '700',
+  },
   actionCard: {
     width: 264,
     height: 76,
@@ -500,8 +580,12 @@ const styles = StyleSheet.create({
     borderColor: colors.bgCard,
     borderRadius: 14,
   },
-  altTitle: {fontSize: type.h2, color: colors.text, fontWeight: 'bold'},
+  tierBadge: {alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 8},
+  tierBadgeText: {fontSize: 13, fontWeight: '700'},
+  altTitle: {fontSize: type.h2, color: colors.text, fontWeight: 'bold', marginTop: spacing.xs},
   altChange: {fontSize: type.body, color: colors.accent, marginTop: spacing.xs},
+  altStaysPowered: {fontSize: type.small, color: colors.textDim, marginTop: 2},
+  altSummary: {fontSize: type.small, color: colors.textDim, lineHeight: 22, marginTop: spacing.sm},
   altStat: {fontSize: type.small, color: colors.textDim, marginTop: spacing.sm},
   altVerified: {fontSize: type.small, marginTop: spacing.sm, fontWeight: '600'},
   altApply: {fontSize: type.small, color: colors.textFaint, marginTop: spacing.sm},

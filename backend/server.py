@@ -28,7 +28,7 @@ sys.path.insert(0, str(APP_ROOT / 'engine'))
 from run_experiment import fixture  # noqa: E402
 from solver import solve, energy_conflict  # noqa: E402
 from verifier import check  # noqa: E402
-from repairs import find_repairs  # noqa: E402
+from repairs import CRITICAL_IDS, find_repairs  # noqa: E402
 
 INSTANCE = token_hex(6)
 PORT = 8766
@@ -117,6 +117,25 @@ def explain_infeasibility(problem, result):
     return 'This combination of requirements cannot be scheduled.', None
 
 
+def _default_required_hours():
+    """The full-service required_hours for each appliance in the unedited
+    default scenario, used only to tell whether a *currently requested*
+    critical appliance has already been knowingly reduced by the household
+    -- never to judge a repair, which always compares against the user's
+    own current request, not this fixed baseline."""
+    base = fixture(OUTAGE_HOURS, DEFAULT_USABLE_WH, DEFAULT_MAX_W)
+    return {a['id']: a['required_hours'] for a in base['appliances']}
+
+
+def _alternative_summary(tier, changed_ids, touches_critical):
+    changes = ', '.join(sorted(changed_ids))
+    if tier == 'requires_compromise':
+        critical = ' and '.join(sorted(touches_critical))
+        return (f"No fix was possible without also reducing {critical} -- usually "
+                f"protected by default. This repair reduces: {changes}.")
+    return f"Keeps every essential service (fridge, router) at its current hours. Reduces: {changes}."
+
+
 def build_plan(usable_wh, max_w, overrides):
     problem = build_problem(usable_wh, max_w, overrides)
     result = solve(problem)
@@ -126,27 +145,40 @@ def build_plan(usable_wh, max_w, overrides):
         explanation, conflict = explain_infeasibility(problem, result)
     verification = check(problem, result['schedule']) if result['feasible'] else None
     requested_wh = sum(a['high_w'] * a['required_hours'] for a in problem['appliances'])
+    defaults_by_id = _default_required_hours()
+    critical_reduced = sorted(
+        aid for aid in CRITICAL_IDS
+        if next(a['required_hours'] for a in problem['appliances'] if a['id'] == aid)
+        < defaults_by_id[aid]
+    )
     requested = {'problem': problem, 'result': result, 'conflict': conflict,
                  'explanation': explanation, 'independent_verification': verification,
-                 'requested_wh': requested_wh}
+                 'requested_wh': requested_wh, 'critical_reduced': critical_reduced}
     repairs = [] if result['feasible'] else find_repairs(problem, max_results=2)
+    all_ids = {a['id'] for a in problem['appliances']}
     alternatives = []
     for label, repair in zip('AB', repairs):
+        changed_ids = {c['id'] for c in repair['changed']}
         alternatives.append({
             'id': label,
+            'tier': repair['tier'],
+            'touches_critical': repair['touches_critical'],
             'changed': repair['changed'],
+            'stays_powered': sorted(all_ids - changed_ids),
             'label': ', '.join(
                 f"{c['id']}: {c['from_hours']}h → {c['to_hours']}h" for c in repair['changed']),
+            'summary': _alternative_summary(repair['tier'], changed_ids, repair['touches_critical']),
             'problem': repair['problem'],
             'result': repair['result'],
             'independent_verification': repair['independent_verification'],
             'hours_removed': repair['hours_removed'],
         })
     return {
-        'schema': 2, 'synthetic': True, 'instance': INSTANCE,
+        'schema': 3, 'synthetic': True, 'instance': INSTANCE,
         'nonce': token_hex(4), 'time_utc': datetime.now(timezone.utc).isoformat(),
         'title': "Tonight's outage plan",
         'outage_hours': OUTAGE_HOURS, 'budget_wh': usable_wh, 'max_w': max_w,
+        'critical_ids': sorted(CRITICAL_IDS),
         'limits': ('Synthetic estimates. Hourly average loads. Startup surges, '
                    'wiring and battery aging are not modeled. Not a guarantee.'),
         'requested': requested,
@@ -156,11 +188,13 @@ def build_plan(usable_wh, max_w, overrides):
 
 def default_config():
     problem = fixture(OUTAGE_HOURS, DEFAULT_USABLE_WH, DEFAULT_MAX_W)
+    appliances = [{**a, 'critical': a['id'] in CRITICAL_IDS} for a in problem['appliances']]
     return {
         'outage_hours': OUTAGE_HOURS,
         'usable_wh': DEFAULT_USABLE_WH,
         'max_w': DEFAULT_MAX_W,
-        'appliances': problem['appliances'],
+        'critical_ids': sorted(CRITICAL_IDS),
+        'appliances': appliances,
     }
 
 
