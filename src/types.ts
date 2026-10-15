@@ -54,17 +54,20 @@ export type Requested = {
   result: SolveResult;
   conflict: EnergyConflict;
   explanation: string | null;
+  independent_verification: Verification;
+  requested_wh: number;
 };
+
+export type ChangedAppliance = {id: string; from_hours: number; to_hours: number};
 
 export type Alternative = {
   id: string;
+  changed: ChangedAppliance[];
   label: string;
-  fan_hours: number;
-  laptop_hours: number;
   problem: Problem;
   result: SolveResult;
   independent_verification: Verification;
-  protected_services_preserved: boolean;
+  hours_removed: number;
 };
 
 export type Plan = {
@@ -77,8 +80,18 @@ export type Plan = {
   outage_hours: number;
   budget_wh: number;
   max_w: number;
-  protected: string;
   limits: string;
   requested: Requested;
   alternatives: Alternative[];
 };
+
+export type Defaults = {
+  instance: string;
+  nonce: string;
+  outage_hours: number;
+  usable_wh: number;
+  max_w: number;
+  appliances: Appliance[];
+};
+
+export type ApplianceRequirement = {id: string; required_hours: number};
