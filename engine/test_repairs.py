@@ -3,13 +3,19 @@ independent of the HTTP layer. Runs standalone, in the style of
 run_experiment.py.
 """
 import copy
+import os
 import random
+import subprocess
+import sys
 from itertools import product
+from pathlib import Path
 
 from run_experiment import fixture
 from repairs import CRITICAL_IDS, find_repairs, _single_appliance_repairs, _two_appliance_repairs
 from solver import solve
 from verifier import check
+
+ENGINE_DIR = Path(__file__).resolve().parent
 
 
 def brute_force_min_pair_sacrifice(problem, id_a, id_b):
@@ -131,6 +137,36 @@ def main():
                     (id_a, id_b, trial, found[0]['hours_removed'], expected)
     assert pairs_checked >= 10, 'adversarial pair search should have exercised multiple scenarios'
     checks.append(f'ADVERSARIAL: two-appliance search matches brute-force minimum ({pairs_checked} scenarios)')
+
+    # --- ADVERSARIAL: ranking is deterministic across PYTHONHASHSEED values ---
+    # repairs.py builds appliance pairs from a set (allowed_ids), whose
+    # iteration order Python randomizes per-process by default. When two
+    # repairs are genuinely tied on (hours_removed, len(changed)), their
+    # relative order must not depend on that randomization -- otherwise
+    # which one the household sees as "Alternative A" could change between
+    # server restarts for the identical scenario. This runs the real
+    # repairs module in fresh subprocesses (not just the one test process,
+    # which only ever has one hash seed) across a spread of seeds, on a
+    # scenario confirmed by direct inspection to produce a genuine two-pair
+    # tie (usable_wh=1690: {fan,laptop} and {phone,laptop} both cost 4).
+    determinism_script = (
+        "from run_experiment import fixture\n"
+        "from repairs import find_repairs\n"
+        "p = fixture(12, usable_wh=1690, max_w=200)\n"
+        "r = find_repairs(p)\n"
+        "print([sorted(c['id'] for c in x['changed']) for x in r])\n"
+    )
+    outputs = set()
+    for seed in (0, 1, 2, 3, 5, 8, 13, 21, 34, 55):
+        result = subprocess.run(
+            [sys.executable, '-c', determinism_script],
+            cwd=str(ENGINE_DIR), capture_output=True, text=True, timeout=30,
+            env={**os.environ, 'PYTHONHASHSEED': str(seed)},
+        )
+        assert result.returncode == 0, (seed, result.stderr)
+        outputs.add(result.stdout.strip())
+    assert len(outputs) == 1, f'ranking is not deterministic across PYTHONHASHSEED: {outputs}'
+    checks.append('ADVERSARIAL: repair ranking is deterministic across 10 PYTHONHASHSEED values on a genuine tie')
 
     # --- essentials are only touched when no essentials-preserving repair exists ---
     forced = fixture(12, usable_wh=1000, max_w=200)

@@ -136,7 +136,11 @@ def _two_appliance_repairs(problem, allowed_ids):
     household to act on, and a deterministic, order-independent choice
     rather than one that depends on dict/set iteration order."""
     originals = {a['id']: a['required_hours'] for a in problem['appliances']}
-    ids = [aid for aid in allowed_ids if originals.get(aid, 0) > 0]
+    # allowed_ids is a set, whose iteration order depends on PYTHONHASHSEED;
+    # sorting here keeps pair *discovery* order reproducible across runs
+    # (on top of _rank's own tiebreaker below, which keeps the final
+    # *ranking* reproducible regardless of discovery order).
+    ids = sorted(aid for aid in allowed_ids if originals.get(aid, 0) > 0)
     candidates = []
     for id_a, id_b in combinations(ids, 2):
         orig_a, orig_b = originals[id_a], originals[id_b]
@@ -161,7 +165,19 @@ def _two_appliance_repairs(problem, allowed_ids):
 
 
 def _rank(candidates):
-    candidates.sort(key=lambda c: (c['hours_removed'], len(c['changed'])))
+    """Sort by the correct optimization priorities -- least total sacrifice,
+    then fewest appliances touched -- with a final tiebreaker (sorted
+    changed-appliance ids) so that two candidates tied on both of those
+    still sort the same way every run. Without it, ties could be ordered by
+    whatever order dict/set iteration happened to discover them in, which
+    varies by PYTHONHASHSEED and is not reproducible across process runs
+    (confirmed: the same tied scenario produced a different Alternative A/B
+    ordering across hash seeds before this tiebreaker was added)."""
+    candidates.sort(key=lambda c: (
+        c['hours_removed'],
+        len(c['changed']),
+        tuple(sorted(x['id'] for x in c['changed'])),
+    ))
     return candidates
 
 

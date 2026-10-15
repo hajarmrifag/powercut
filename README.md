@@ -75,7 +75,10 @@ powercut-app/
 │   ├── App.spec.tsx           Jest tests for the full interactive frontend
 │   └── fixtures/               Real backend responses, captured live, used as test data
 ├── docs/
-│   └── USER_TEST_PROTOCOL.md  Five-minute two-adult shared-screen test script
+│   ├── USER_TEST_PROTOCOL.md         Shared-screen two-adult test script
+│   ├── VEGA_SDK_FRICTION_LOG.md      Real SDK friction hit, with evidence
+│   ├── DEVPOST_SUBMISSION_CHECKLIST.md  Pre-submission checklist
+│   └── DEMO_VIDEO_STORYBOARD.md      Shot list for a sub-3-minute demo
 └── evidence/
     └── screenshots/            Screenshots from the app running on the Vega Virtual Device
 ```
@@ -125,9 +128,18 @@ whichever tied-minimum point touches fewer appliances — necessary because
 scanning only one direction can land on an arbitrary tied point depending
 on iteration order (found and fixed during Phase 3; see the "adversarial"
 tests in `engine/test_repairs.py`, which compare every claim against an
-independent brute-force oracle). **Optimality is claimed only within this
-one-or-two-appliance search scope** — a configuration that genuinely needs
-three or more simultaneous changes is reported as infeasible with no
+independent brute-force oracle). A second, separate ordering bug was found
+in the same pass: `_rank`'s sort key had no final tiebreaker, so when two
+*different* repairs genuinely tied on cost and appliance count, which one
+ranked first (which one the household sees as "Alternative A") depended on
+Python's per-process hash-seed-randomized set iteration order — confirmed
+non-deterministic across `PYTHONHASHSEED` values on a constructed tied
+scenario before the fix, and deterministic after adding a sorted-ids
+tiebreaker; `test_repairs.py` now runs the real module in subprocesses
+across ten hash seeds on that scenario as a permanent regression check.
+**Optimality is claimed only within this one-or-two-appliance search
+scope** — a configuration that genuinely needs three or more simultaneous
+changes is reported as infeasible with no
 automatic repair, not guessed at.
 
 ### Backend (`backend/server.py`)
@@ -166,7 +178,7 @@ Virtual Device output, not just desktop assumptions.
 
 ## Tests
 
-52 automated checks across the stack.
+53 automated checks across the stack.
 
 **Frontend** (Jest + TypeScript + ESLint):
 ```
@@ -196,11 +208,13 @@ python3 test_server.py   # 11 checks: malformed input rejected, impossible-but-
 cd powercut-app/engine
 python3 run_experiment.py   # 16 checks: exhaustive oracle comparisons,
                              # mutation-rejection, timing
-python3 test_repairs.py     # 10 checks, including two adversarial brute-force
-                             # comparisons: single- and two-appliance search
-                             # results are compared against an independent
-                             # exhaustive oracle across multiple constructed
-                             # scenarios, not just spot-checked by hand
+python3 test_repairs.py     # 11 checks, including three adversarial checks:
+                             # single- and two-appliance search results are
+                             # compared against an independent exhaustive
+                             # oracle across multiple constructed scenarios
+                             # (not just spot-checked by hand), and repair
+                             # ranking is confirmed deterministic across ten
+                             # PYTHONHASHSEED values on a genuine tie
 ```
 
 ## Running it on Vega
@@ -275,13 +289,26 @@ screen. Phase 3 investigated this directly rather than assuming it away:
 
 ## User testing
 
-`docs/USER_TEST_PROTOCOL.md` is a five-minute script for two adults sharing
+`docs/USER_TEST_PROTOCOL.md` is a six-minute script for two adults sharing
 one screen and remote: a stable demo scenario (the shipped default), a
-minute-by-minute facilitator script, and what to record — whether they find
-and understand the conflict explanation unprompted, how they compare the
-two repair alternatives, and whether the shared screen visibly changes how
-they negotiate versus one person on a phone. It has not yet been run with
-real participants; this phase delivers the instrument, not results.
+minute-by-minute facilitator script — including one participant-directed
+appliance edit and a direct check on whether they distinguish energy (Wh)
+from power (W) — and what to record: whether they find and understand the
+conflict explanation unprompted, how they compare the two repair
+alternatives, and whether the shared screen visibly changes how they
+negotiate versus one person on a phone. It has not yet been run with real
+participants; this phase delivers the instrument, not results.
+
+## Submission readiness
+
+Three more documents under `docs/` prepare for, but do not perform,
+submission: `VEGA_SDK_FRICTION_LOG.md` (real friction hit while building on
+Vega, with evidence, for anyone continuing this project or asked for SDK
+feedback), `DEVPOST_SUBMISSION_CHECKLIST.md` (what's left before
+submitting, including the still-open license and repo-visibility
+decisions), and `DEMO_VIDEO_STORYBOARD.md` (a shot-by-shot script for a
+sub-three-minute demo of the real running product). The repository remains
+private and nothing has been submitted.
 
 ## Scope and limitations
 
