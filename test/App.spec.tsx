@@ -327,6 +327,39 @@ describe('App', () => {
     expect(screen.getByText('✓ Protects essentials')).toBeTruthy();
     expect(screen.getByText('Reduces: fridge: 12h → 1h')).toBeTruthy();
     expect(screen.getByText(/Keeps every essential service \(router\)/)).toBeTruthy();
+    // A "protects_essentials" tag means it protects whatever the household
+    // *currently* has marked essential (router, here) -- it must not read
+    // as a food-safety endorsement for the fridge hours it reduces.
+    expect(screen.getByTestId('alt-safety-caution-A')).toBeTruthy();
+    expect(screen.getByText(/not a guarantee of food safety/)).toBeTruthy();
+  });
+
+  it('shows no safety caution on a repair that leaves fridge and router untouched', async () => {
+    mockPlanSequence([infeasibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-alternatives'));
+    fireEvent.press(screen.getByTestId('tile-alternatives'));
+    // The default fixture's repairs reduce laptop/fan, never fridge/router.
+    expect(screen.queryByTestId('alt-safety-caution-A')).toBeNull();
+    expect(screen.queryByTestId('alt-safety-caution-B')).toBeNull();
+  });
+
+  it('unmarking fridge as essential shows a food-safety caution distinct from the generic toggle copy', async () => {
+    mockPlanSequence([infeasibleFixture, infeasibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-appliance-fridge'));
+    fireEvent.press(screen.getByTestId('tile-appliance-fridge'));
+    await waitFor(() => screen.getByTestId('btn-toggle-essential'));
+    // Marked (default): food-safety rationale, not the generic copy.
+    expect(screen.getByText(/Marked essential: protects food safety/)).toBeTruthy();
+    expect(screen.queryByTestId('safety-caution-edit')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('btn-toggle-essential'));
+    await waitFor(() => expect(api.fetchPlan).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('safety-caution-edit')).toBeTruthy();
+    expect(
+      screen.getByText(/not a guarantee that food stays safely cold/),
+    ).toBeTruthy();
   });
 
   it('unmarking an appliance after marking it restores exactly the original essentials set', async () => {

@@ -11,6 +11,54 @@ const OUTAGE_HOURS = 12;
 const APPLIANCE_IDS = ['fridge', 'router', 'lamp', 'phone', 'laptop', 'fan'];
 const DEFAULT_CRITICAL_IDS = new Set(['fridge', 'router']);
 
+// "Essential" here is a household preference the optimizer respects --
+// it is not a safety certification. Fridge and router are the two
+// appliances where that distinction actually matters in the real world
+// (food safety, emergency connectivity), so unmarking either one gets an
+// explicit, appliance-specific caution instead of the generic toggle
+// copy every other appliance gets. This is deliberately narrow: nothing
+// else in the UI changes for the other four appliances.
+const SAFETY_SENSITIVE_IDS = new Set(['fridge', 'router']);
+const SAFETY_NOTE: Record<string, string> = {
+  fridge:
+    'Unmarking fridge is your own choice. A plan shown as feasible is a math-only energy estimate -- ' +
+    'it is not a guarantee that food stays safely cold for that long.',
+  router:
+    'Unmarking router is your own choice. A plan shown as feasible is a math-only energy estimate -- ' +
+    'it is not a guarantee of connectivity if you need it.',
+};
+
+function essentialNoteFor(id: string, isCritical: boolean): string {
+  if (isCritical) {
+    if (id === 'fridge') {
+      return 'Marked essential: protects food safety. The automatic repair search won\'t reduce it unless no other fix exists.';
+    }
+    if (id === 'router') {
+      return 'Marked essential: keeps emergency connectivity available. The automatic repair search won\'t reduce it unless no other fix exists.';
+    }
+    return "Marked essential: the automatic repair search won't reduce it unless no other fix exists.";
+  }
+  return 'Not marked essential: the automatic repair search may reduce it freely to make a plan fit.';
+}
+
+// Same caution as SAFETY_NOTE above, phrased for an alternative-repair
+// card rather than the edit screen -- shown whenever a specific repair
+// would actually reduce fridge or router's hours, regardless of which
+// tier it's tagged (a repair can be "protects_essentials" and still
+// touch fridge, if the household has unmarked fridge itself).
+function alternativeSafetyCaution(changedIds: string[]): string | null {
+  const touches = changedIds.filter(id => SAFETY_SENSITIVE_IDS.has(id));
+  if (touches.length === 0) {
+    return null;
+  }
+  const concerns = touches
+    .map(id => (id === 'fridge' ? 'food safety' : 'connectivity'))
+    .join(' and ');
+  return (
+    `⚠ Verified against the energy math only -- not a guarantee of ${concerns}.`
+  );
+}
+
 function clamp(value: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, value));
 }
@@ -324,10 +372,13 @@ export const App = () => {
           {info ? `${info.low_w}-${info.high_w} W · available ${windowLen}h of this outage` : ''}
         </Text>
         <Text style={styles.paragraph} testID="essential-note">
-          {isCritical
-            ? "Marked essential: the automatic repair search won't reduce it unless no other fix exists."
-            : 'Not marked essential: the automatic repair search may reduce it freely to make a plan fit.'}
+          {essentialNoteFor(editingId, isCritical)}
         </Text>
+        {!isCritical && SAFETY_SENSITIVE_IDS.has(editingId) && (
+          <Text style={styles.safetyCaution} testID="safety-caution-edit">
+            {SAFETY_NOTE[editingId]}
+          </Text>
+        )}
         {renderStatusLine()}
         <Text style={styles.bigValue} testID="appliance-hours-value">{hours}h required</Text>
         <TVFocusGuideView style={styles.stepperRow} autoFocus>
@@ -510,6 +561,14 @@ export const App = () => {
                     ? '✓ Independently verified'
                     : '✗ verification failed'}
                 </Text>
+                {(() => {
+                  const caution = alternativeSafetyCaution(alt.changed.map(c => c.id));
+                  return caution ? (
+                    <Text style={styles.safetyCaution} testID={`alt-safety-caution-${alt.id}`}>
+                      {caution}
+                    </Text>
+                  ) : null;
+                })()}
                 <Text style={styles.altApply}>Select to apply</Text>
               </Pressable>
             );
@@ -619,6 +678,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   essentialToggleOn: {borderColor: colors.accentDim},
+  safetyCaution: {
+    fontSize: type.small,
+    color: colors.infeasible,
+    lineHeight: 22,
+    marginTop: spacing.sm,
+    fontWeight: '600',
+  },
   livePreview: {fontSize: type.h2, marginTop: spacing.lg, fontWeight: 'bold'},
   paragraph: {fontSize: type.body, color: colors.textDim, lineHeight: 29, marginTop: spacing.sm, marginBottom: spacing.sm},
   sectionTitle: {fontSize: type.h2, color: colors.accent, marginTop: spacing.md, marginBottom: spacing.sm},
