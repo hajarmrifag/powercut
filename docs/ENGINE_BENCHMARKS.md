@@ -92,8 +92,87 @@ measurement error.)
   indicator covers it, same as any other in-flight calculation), but 2
   seconds is a noticeably long wait if a judge or user happens to hit it
   live.
-- A real, scoped optimization exists (described in `ENGINE_PORT.md`'s
-  "Known limitation" section: stop redoing the flexible-appliance search
-  twice across the two tiers) but was not implemented in this phase —
-  flagged to the project owner as a trade-off decision rather than
-  rushed into already-differential-tested code against a deadline.
+
+## Update: the worst-case fallback tier was optimized
+
+See `docs/ENGINE_PORT.md`'s "Optimizing the fallback tier" section for
+the full before/after design. Summary of the verification done here:
+
+**Confirmed, not assumed, that duplicate work across tiers was a real
+cost.** Instrumented `solve()` with a call counter and profiled the
+worst-case scenario (`forces_compromise_tier`) before optimizing:
+
+```
+tier 1 (protects_essentials, flexible appliances only): 141 solve() calls
+tier 2 (requires_compromise, re-searches ALL appliances from scratch): 627 more calls
+total: 770 calls
+```
+
+Per-pair profiling confirmed the mechanism precisely: this specific
+scenario is tight enough (1300 Wh) that *no* flexible-only combination —
+not even zeroing every flexible appliance at once — reaches feasibility,
+so tier 1's entire 141-call search finds nothing, and tier 2 then re-runs
+that exact same doomed search a second time (same problem, same inputs,
+provably the same result) before doing the genuinely new work of
+searching pairs that include fridge or router.
+
+**After the optimization** (tier 2 now only searches the combinations
+tier 1 didn't already cover — see `ENGINE_PORT.md`): **629 solve() calls,
+down from 770 — an 18.3% reduction**, measured identically (same
+instrumentation, same scenario, same machine) immediately before and
+after the code change. This number is deterministic — it counts actual
+function calls, not wall-clock time — so it isn't subject to the noise
+discussed below.
+
+## On-device wall-clock re-benchmark: an honest result, including a dead end
+
+Re-ran the same benchmark harness on the Virtual Device after the
+optimization, expecting to see the worst-case category drop by roughly
+the same ~18%. It didn't — two runs came back *slower* (medians 2312ms
+and 2279ms) than the original pre-optimization number (2056ms).
+
+Rather than report that at face value in either direction, it was
+checked properly: the host machine's load average had climbed from
+baseline to 4.5–5.0 over the course of this session (concurrent Chrome
+tabs, an editor, another local dev server, the VVD's own QEMU process all
+competing for the same CPU — `uptime` and `ps` output captured at the
+time). To separate "the optimization is slower" from "the shared machine
+got busier," the *original, unoptimized* code was rebuilt and
+re-benchmarked on the same device under the same current load, back to
+back with the optimized runs. Its worst-case median came back at
+**2242ms** — statistically indistinguishable from the optimized code's
+2279–2312ms, and itself nearly 200ms slower than ITS OWN earlier
+baseline.
+
+**Conclusion: the slowdown across all three same-session runs is
+environmental (host contention), not a regression from the optimization.**
+The deterministic call-count evidence (629 vs 770, measured by counting,
+not timing) is the trustworthy signal here; the wall-clock numbers from
+this specific noisy session are not precise enough to cleanly show an
+~18% delta when background jitter on a shared machine is itself in a
+similar range. Screenshots of all three on-device runs (two optimized,
+one same-conditions control) are in
+`evidence/screenshots/phase-a/benchmark-optimized/`.
+
+No crashes, freezes, or ANR-style kills occurred in any of the three
+runs — the per-iteration-yielding harness and the deferred-call
+architecture in `src/api.ts` continue to hold up regardless of the
+host-noise issue above.
+
+## What's still true, and what to watch for
+
+- The optimization reduces actual engine work in the worst case by
+  ~18%, proven by direct call-count measurement, with zero behavior
+  change (164/164 differential tests, including this exact scenario,
+  still pass byte-for-byte against the untouched Python reference).
+- A clean, low-noise wall-clock confirmation of that ~18% was not
+  obtained in this session due to shared-machine load, and is flagged
+  here rather than papered over. Re-running this benchmark on a quieter
+  machine (or this one at a quieter time) would be the way to get a
+  tighter wall-clock number; it isn't necessary to trust the correctness
+  or the reduced-work result, both of which rest on the differential
+  suite and the call counts, not on timing.
+- The remaining cost (629 calls, ~2 seconds on this device) is inherent
+  to exhaustively searching pairs that include fridge or router (ceiling
+  12 vs. 1–4 for the flexible appliances) — not redundancy, and not
+  something this optimization was meant to address further.

@@ -101,7 +101,7 @@ development):
 | `defaultConfig()` | 0ms | 0ms | 0ms | 10 |
 | Feasible plan (laptop=1h) | 1ms | 2ms | 2ms | 10 |
 | Default infeasible, single repair tier | 43ms | 182ms | 182ms | 10 |
-| **Worst case: both repair tiers forced** | **2056ms** | **2104ms** | **2104ms** | 10 |
+| **Worst case (before optimization)** | **2056ms** | **2104ms** | **2104ms** | 10 |
 
 The worst-case row only triggers when the `protects_essentials` tier
 search (4 flexible appliances) finds fewer than 2 repairs and the full
@@ -110,7 +110,14 @@ with their larger 12-hour ceilings) re-runs its own complete single- and
 two-appliance search on top. That ~2-second case is **not the shipped
 demo scenario** (the actual default-scenario repair search measured
 43–182ms) — it requires a household edit that leaves no essentials-
-preserving fix at all. See "Known limitation" below.
+preserving fix at all.
+
+**This worst case was since optimized — see "Optimizing the fallback
+tier" below.** The algorithmic improvement is proven (18.3% fewer
+`solve()` calls, measured by direct counting); the on-device wall-clock
+re-benchmark came back inconclusive due to host-machine load during this
+session, not a regression — the full honest account, including a
+same-conditions control run, is in `docs/ENGINE_BENCHMARKS.md`.
 
 **Real finding during benchmarking, not assumed:** an early version of
 this harness ran each category as one tight synchronous loop (no
@@ -125,18 +132,47 @@ be fast or itself be interruptible — never assume "it's just JS, it'll
 be fine." The final harness yields between every iteration and the
 numbers above are from that version, which completed cleanly.
 
-## Known limitation: worst-case repair search latency
+## Optimizing the fallback tier
 
-The ~2-second worst case is real and currently unoptimized. It does not
-block the UI thread (deferred execution + the "Saving…" indicator cover
-it, same as any other in-flight request), and it is rare — it only
-occurs when a household's edits leave literally no essentials-preserving
-repair, forcing the full fallback search. The likely fix, not yet done:
-the `requires_compromise` tier currently redoes the single- and two-
-appliance search for the 4 flexible appliances from scratch instead of
-reusing the `protects_essentials` tier's already-computed results for
-that subset, and only computing the new work introduced by fridge/router
-joining the pool. That would roughly halve the worst-case cost. Flagged
-to the project owner as a decision point before further work, per the
-instruction to stop and explain trade-offs rather than rush a fix into
-already-proven-correct code on a deadline.
+The ~2-second worst case (both repair tiers forced to run) was profiled,
+not assumed, before touching anything: a call counter on `solve()` showed
+tier 1 (the `protects_essentials` search over the 4 flexible appliances)
+spends 141 calls, and tier 2 — which re-ran the identical search again
+from scratch before adding fridge/router to the pool — added 627 more,
+for 770 total. Per-pair instrumentation confirmed why: the engineered
+worst-case scenario is tight enough that no flexible-only combination
+reaches feasibility, so tier 1's entire search comes up empty, and tier 2
+redundantly repeats that exact same doomed search (same inputs,
+deterministically the same result) before doing the genuinely new
+critical-appliance-inclusive search.
+
+**The fix** (`src/engine/repairs.ts`, `findRepairs`): when tier 1 doesn't
+find enough repairs, tier 2 no longer re-searches combinations tier 1
+already fully explored. It searches only what's new — single-appliance
+repairs for fridge/router, and two-appliance pairs that include at least
+one of them (`twoApplianceRepairs` gained an optional
+`skipPairsFullyWithin` parameter for this) — and each new candidate is
+tagged by what it actually changed (`requires_compromise` only if its own
+`changed` set touches a critical appliance) rather than by which search
+pass found it. Tier 1's own results, already pushed into the shared
+`seen`/`results` dedup state, are untouched. This is provably equivalent
+to the old "search everyone, twice" approach: the skipped combinations
+are a pure function of `problem`, which hasn't changed between the two
+tiers, so re-running them could only ever reproduce exactly what tier 1
+already found (caught by `seen`) or exactly the same empty result tier 1
+already got.
+
+**Result:** 629 solve() calls instead of 770 — an 18.3% reduction,
+measured by direct call-counting immediately before and after the
+change, not by timing. Full differential suite (164/164), every Python
+regression test, lint, and type-check all still pass unchanged; see
+`docs/ENGINE_BENCHMARKS.md` for the on-device wall-clock re-benchmark,
+including an honest account of why that specific re-benchmark came back
+noisy (shared-machine load, not a regression — verified with a same-
+conditions control run of the original code).
+
+This was a narrow, low-risk change by design: it doesn't touch the
+binary-search or frontier-scan algorithms themselves (the parts that are
+hardest to get right and that the differential/adversarial tests exist
+to protect), only which combinations get handed to them and how results
+from two passes get merged.
