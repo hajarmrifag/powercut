@@ -13,13 +13,23 @@
 // case, the demo sequence, all-zero, all-max, extreme capacity,
 // forced-compromise-tier, power-conflict) plus 150 scenarios randomized
 // under a fixed seed across usable_wh, max_w, and every appliance's
-// required_hours.
+// required_hours; plus (Phase B) 7 hand-picked and 60 randomized scenarios
+// that also vary the household's own essentials (critical_ids) selection
+// -- see engine/differential/generate_cases.py's
+// randomized_critical_ids_cases(). A case with no `critical_ids` field
+// omits the parameter entirely on both sides, exercising the pre-Phase-B
+// default-essentials call shape exactly as before.
 import differentialCases from './fixtures/differential-cases.json';
 import {buildPlan, validateRequest} from '../src/engine/plan';
 
 type Case = {
   name: string;
-  input: {usable_wh: number; max_w: number; appliances: Array<{id: string; required_hours: number}>};
+  input: {
+    usable_wh: number;
+    max_w: number;
+    appliances: Array<{id: string; required_hours: number}>;
+    critical_ids?: string[];
+  };
   expected: unknown;
 };
 
@@ -48,12 +58,13 @@ describe('TypeScript engine vs Python engine (differential)', () => {
   });
 
   it.each(allCases.map(c => [c.name, c] as const))('%s', (_name, c) => {
-    const {usableWh, maxW, overrides} = validateRequest(
+    const {usableWh, maxW, overrides, criticalIds} = validateRequest(
       c.input.usable_wh,
       c.input.max_w,
       c.input.appliances,
+      c.input.critical_ids,
     );
-    const actual = stripNondeterministic(buildPlan(usableWh, maxW, overrides));
+    const actual = stripNondeterministic(buildPlan(usableWh, maxW, overrides, criticalIds));
     expect(actual).toEqual(c.expected);
   });
 });

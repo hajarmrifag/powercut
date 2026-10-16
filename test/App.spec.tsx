@@ -258,4 +258,89 @@ describe('App', () => {
   // never invokes it), so the Back -> focus-restoration path cannot be
   // meaningfully exercised here -- it is verified on the real Vega Virtual
   // Device instead (see evidence/screenshots/phase3/).
+
+  // --- Phase B: household-defined essentials ---
+
+  it('fridge and router start essential, and an edit screen shows an unmarked appliance as not essential', async () => {
+    mockPlanSequence([infeasibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('badge-essential-fridge'));
+    expect(screen.getByTestId('badge-essential-router')).toBeTruthy();
+    expect(screen.queryByTestId('badge-essential-lamp')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('tile-appliance-lamp'));
+    await waitFor(() => screen.getByTestId('btn-toggle-essential'));
+    expect(screen.getByText('Mark as essential')).toBeTruthy();
+    expect(
+      screen.getByText('Not marked essential: the automatic repair search may reduce it freely to make a plan fit.'),
+    ).toBeTruthy();
+  });
+
+  it('marking an appliance essential sends the updated critical_ids to the engine and updates the badge', async () => {
+    mockPlanSequence([infeasibleFixture, infeasibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-appliance-lamp'));
+    fireEvent.press(screen.getByTestId('tile-appliance-lamp'));
+    await waitFor(() => screen.getByTestId('btn-toggle-essential'));
+    fireEvent.press(screen.getByTestId('btn-toggle-essential'));
+    await waitFor(() => expect(api.fetchPlan).toHaveBeenCalledTimes(2));
+    const sentCriticalIds = (api.fetchPlan as jest.Mock).mock.calls[1][3] as string[];
+    expect(new Set(sentCriticalIds)).toEqual(new Set(['fridge', 'router', 'lamp']));
+    expect(screen.getByText('✓ Essential — unmark')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('btn-toggle-essential'));
+    await waitFor(() => expect(api.fetchPlan).toHaveBeenCalledTimes(3));
+    const sentAfterUnmark = (api.fetchPlan as jest.Mock).mock.calls[2][3] as string[];
+    expect(new Set(sentAfterUnmark)).toEqual(new Set(['fridge', 'router']));
+  });
+
+  it('the alternatives screen offers and correctly explains a fridge-reducing repair once fridge is not essential', async () => {
+    // Simulates the plan the engine returns once a household has unmarked
+    // fridge (critical_ids now just {router}) and the plan is infeasible --
+    // a repair that reduces fridge is only ever protects_essentials, never
+    // offered at all under the default {fridge, router} criticality, so
+    // this is standing in for "the recommended alternatives change" that's
+    // also verified end-to-end on the real device (see docs/PHASE_B.md).
+    const fridgeFlexibleFixture = {
+      ...infeasibleFixture,
+      critical_ids: ['router'],
+      alternatives: [
+        {
+          id: 'A',
+          tier: 'protects_essentials',
+          touches_critical: [],
+          changed: [{id: 'fridge', from_hours: 12, to_hours: 1}],
+          stays_powered: ['router', 'lamp', 'phone', 'laptop', 'fan'],
+          label: 'fridge: 12h → 1h',
+          summary: 'Keeps every essential service (router) at its current hours. Reduces: fridge.',
+          problem: infeasibleFixture.alternatives[0].problem,
+          result: infeasibleFixture.alternatives[0].result,
+          independent_verification: infeasibleFixture.alternatives[0].independent_verification,
+          hours_removed: 11,
+        },
+      ],
+    };
+    mockPlanSequence([fridgeFlexibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-alternatives'));
+    fireEvent.press(screen.getByTestId('tile-alternatives'));
+    expect(screen.getByText('✓ Protects essentials')).toBeTruthy();
+    expect(screen.getByText('Reduces: fridge: 12h → 1h')).toBeTruthy();
+    expect(screen.getByText(/Keeps every essential service \(router\)/)).toBeTruthy();
+  });
+
+  it('unmarking an appliance after marking it restores exactly the original essentials set', async () => {
+    mockPlanSequence([infeasibleFixture, infeasibleFixture, infeasibleFixture]);
+    render(<App />);
+    await waitFor(() => screen.getByTestId('tile-appliance-lamp'));
+    fireEvent.press(screen.getByTestId('tile-appliance-lamp'));
+    await waitFor(() => screen.getByTestId('btn-toggle-essential'));
+    fireEvent.press(screen.getByTestId('btn-toggle-essential'));
+    await waitFor(() => expect(api.fetchPlan).toHaveBeenCalledTimes(2));
+
+    fireEvent.press(screen.getByTestId('btn-toggle-essential'));
+    await waitFor(() => expect(api.fetchPlan).toHaveBeenCalledTimes(3));
+    const sentAfterUnmark = (api.fetchPlan as jest.Mock).mock.calls[2][3] as string[];
+    expect(new Set(sentAfterUnmark)).toEqual(new Set(['fridge', 'router']));
+  });
 });

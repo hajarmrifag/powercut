@@ -44,7 +44,7 @@ class InputError(ValueError):
 
 
 def validate_request(data):
-    if not isinstance(data, dict) or set(data) - {'usable_wh', 'max_w', 'appliances'}:
+    if not isinstance(data, dict) or set(data) - {'usable_wh', 'max_w', 'appliances', 'critical_ids'}:
         raise InputError('unexpected fields')
     usable_wh = data.get('usable_wh', DEFAULT_USABLE_WH)
     max_w = data.get('max_w', DEFAULT_MAX_W)
@@ -52,9 +52,19 @@ def validate_request(data):
         raise InputError('usable_wh must be an integer in 100..10000')
     if type(max_w) is not int or not 50 <= max_w <= 2000:
         raise InputError('max_w must be an integer in 50..2000')
+    critical_ids = data.get('critical_ids')
+    if critical_ids is not None:
+        if not isinstance(critical_ids, list) or any(type(x) is not str for x in critical_ids):
+            raise InputError('critical_ids must be a list of appliance ids')
+        if len(set(critical_ids)) != len(critical_ids):
+            raise InputError('critical_ids must not contain duplicates')
+        unknown = set(critical_ids) - set(KNOWN_IDS)
+        if unknown:
+            raise InputError(f'unknown appliance id in critical_ids: {sorted(unknown)!r}')
+        critical_ids = frozenset(critical_ids)
     appliances = data.get('appliances')
     if appliances is None:
-        return usable_wh, max_w, {}
+        return usable_wh, max_w, {}, critical_ids
     if not isinstance(appliances, list) or len(appliances) == 0:
         raise InputError('appliances must be a non-empty list')
     overrides = {}
@@ -70,7 +80,7 @@ def validate_request(data):
         if type(hours) is not int or not 0 <= hours <= OUTAGE_HOURS:
             raise InputError(f'{aid} required_hours must be an integer in 0..{OUTAGE_HOURS}')
         overrides[aid] = hours
-    return usable_wh, max_w, overrides
+    return usable_wh, max_w, overrides, critical_ids
 
 
 def build_problem(usable_wh, max_w, overrides):
@@ -127,16 +137,24 @@ def _default_required_hours():
     return {a['id']: a['required_hours'] for a in base['appliances']}
 
 
-def _alternative_summary(tier, changed_ids, touches_critical):
+def _alternative_summary(tier, changed_ids, touches_critical, critical_ids):
     changes = ', '.join(sorted(changed_ids))
     if tier == 'requires_compromise':
         critical = ' and '.join(sorted(touches_critical))
         return (f"No fix was possible without also reducing {critical} -- usually "
                 f"protected by default. This repair reduces: {changes}.")
-    return f"Keeps every essential service (fridge, router) at its current hours. Reduces: {changes}."
+    kept = ', '.join(sorted(critical_ids)) if critical_ids else 'none selected'
+    return f"Keeps every essential service ({kept}) at its current hours. Reduces: {changes}."
 
 
-def build_plan(usable_wh, max_w, overrides):
+def build_plan(usable_wh, max_w, overrides, critical_ids=None):
+    """critical_ids: which appliance ids this household currently marks as
+    essential. Defaults to CRITICAL_IDS (fridge, router) when omitted, so
+    every pre-existing caller keeps its exact original behavior -- Phase B
+    (household-defined essentials) is the only caller that passes its own
+    selection, and that selection genuinely drives find_repairs' search,
+    not just this response's display fields."""
+    critical_ids = CRITICAL_IDS if critical_ids is None else frozenset(critical_ids)
     problem = build_problem(usable_wh, max_w, overrides)
     result = solve(problem)
     if result['feasible']:
@@ -147,14 +165,14 @@ def build_plan(usable_wh, max_w, overrides):
     requested_wh = sum(a['high_w'] * a['required_hours'] for a in problem['appliances'])
     defaults_by_id = _default_required_hours()
     critical_reduced = sorted(
-        aid for aid in CRITICAL_IDS
+        aid for aid in critical_ids
         if next(a['required_hours'] for a in problem['appliances'] if a['id'] == aid)
         < defaults_by_id[aid]
     )
     requested = {'problem': problem, 'result': result, 'conflict': conflict,
                  'explanation': explanation, 'independent_verification': verification,
                  'requested_wh': requested_wh, 'critical_reduced': critical_reduced}
-    repairs = [] if result['feasible'] else find_repairs(problem, max_results=2)
+    repairs = [] if result['feasible'] else find_repairs(problem, max_results=2, critical_ids=critical_ids)
     all_ids = {a['id'] for a in problem['appliances']}
     alternatives = []
     for label, repair in zip('AB', repairs):
@@ -167,7 +185,7 @@ def build_plan(usable_wh, max_w, overrides):
             'stays_powered': sorted(all_ids - changed_ids),
             'label': ', '.join(
                 f"{c['id']}: {c['from_hours']}h → {c['to_hours']}h" for c in repair['changed']),
-            'summary': _alternative_summary(repair['tier'], changed_ids, repair['touches_critical']),
+            'summary': _alternative_summary(repair['tier'], changed_ids, repair['touches_critical'], critical_ids),
             'problem': repair['problem'],
             'result': repair['result'],
             'independent_verification': repair['independent_verification'],
@@ -178,7 +196,7 @@ def build_plan(usable_wh, max_w, overrides):
         'nonce': token_hex(4), 'time_utc': datetime.now(timezone.utc).isoformat(),
         'title': "Tonight's outage plan",
         'outage_hours': OUTAGE_HOURS, 'budget_wh': usable_wh, 'max_w': max_w,
-        'critical_ids': sorted(CRITICAL_IDS),
+        'critical_ids': sorted(critical_ids),
         'limits': ('Synthetic estimates. Hourly average loads. Startup surges, '
                    'wiring and battery aging are not modeled. Not a guarantee.'),
         'requested': requested,
@@ -235,8 +253,8 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < size <= 4096:
                 return self.reply(413, {'error': 'body must be 1..4096 bytes'})
             data = json.loads(self.rfile.read(size))
-            usable_wh, max_w, overrides = validate_request(data)
-            self.reply(200, build_plan(usable_wh, max_w, overrides))
+            usable_wh, max_w, overrides, critical_ids = validate_request(data)
+            self.reply(200, build_plan(usable_wh, max_w, overrides, critical_ids))
         except (InputError, ValueError, TypeError, KeyError, json.JSONDecodeError) as e:
             self.reply(422, {'error': str(e)})
         except Exception as e:  # noqa: BLE001 - surface to the app as JSON

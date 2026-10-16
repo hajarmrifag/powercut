@@ -45,11 +45,27 @@ def main():
     checks.append('malformed input rejected with InputError in every case')
 
     # --- valid partial/empty edits are accepted ---
-    usable_wh, max_w, overrides = validate_request({})
-    assert (usable_wh, max_w, overrides) == (1800, 200, {}), 'empty body should use all defaults'
-    usable_wh, max_w, overrides = validate_request({'usable_wh': 2000})
+    usable_wh, max_w, overrides, critical_ids = validate_request({})
+    assert (usable_wh, max_w, overrides, critical_ids) == (1800, 200, {}, None), \
+        'empty body should use all defaults'
+    usable_wh, max_w, overrides, critical_ids = validate_request({'usable_wh': 2000})
     assert usable_wh == 2000 and max_w == 200
     checks.append('valid/partial/empty requests accepted with correct defaults')
+
+    # --- household-defined essentials (Phase B) ---
+    usable_wh, max_w, overrides, critical_ids = validate_request({'critical_ids': ['lamp', 'fan']})
+    assert critical_ids == frozenset({'lamp', 'fan'})
+    expect_rejected({'critical_ids': ['not_a_real_id']}, 'unknown id in critical_ids rejected')
+    expect_rejected({'critical_ids': ['fridge', 'fridge']}, 'duplicate critical_ids rejected')
+    expect_rejected({'critical_ids': 'fridge'}, 'non-list critical_ids rejected')
+    custom = build_plan(1800, 200, {a['id']: a['required_hours'] for a in all_appliances()},
+                         critical_ids=frozenset({'lamp'}))
+    assert custom['critical_ids'] == ['lamp'], 'response reflects the requested critical_ids, not the fixed default'
+    none_critical = build_plan(1300, 200,
+                                {a['id']: a['required_hours'] for a in all_appliances()},
+                                critical_ids=frozenset())
+    assert none_critical['requested']['critical_reduced'] == [], 'nothing can be "reduced below essential" with no essentials selected'
+    checks.append('household-defined critical_ids validated and genuinely change the response')
 
     # --- default scenario: infeasible, explained, two independently-verified repairs ---
     plan = build_plan(1800, 200, {a['id']: a['required_hours'] for a in all_appliances()})

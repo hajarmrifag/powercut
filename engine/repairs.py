@@ -181,31 +181,40 @@ def _rank(candidates):
     return candidates
 
 
-def find_repairs(problem, max_results=2):
+def find_repairs(problem, max_results=2, critical_ids=None):
     """Up to max_results distinct, independently-verified feasible repairs
     for an infeasible problem, ranked by least total service hours removed.
     Returns [] if the problem is already feasible, or if no repair exists
     within one or two simultaneous appliance reductions.
 
+    critical_ids: which appliance ids the search should try to avoid
+    touching. Defaults to CRITICAL_IDS (fridge, router) when omitted, so
+    every pre-existing caller and test keeps its exact original behavior.
+    Phase B (household-defined essentials) passes the household's own
+    current selection instead -- this is the only change needed here to
+    let that selection genuinely drive the search, not just the display.
+
     Each result is tagged:
-      tier='protects_essentials' -- feasible without touching fridge/router.
-      tier='requires_compromise' -- only feasible by also reducing fridge
-        and/or router; 'touches_critical' names which ones.
+      tier='protects_essentials' -- feasible without touching any id in
+        critical_ids.
+      tier='requires_compromise' -- only feasible by also reducing one or
+        more critical_ids; 'touches_critical' names which ones.
     protects_essentials repairs are always preferred and listed first;
     requires_compromise repairs are only included to fill remaining slots
     when fewer than max_results essentials-preserving repairs exist.
     """
+    critical_ids = CRITICAL_IDS if critical_ids is None else frozenset(critical_ids)
     if solve(problem)['feasible']:
         return []
     all_ids = {a['id'] for a in problem['appliances']}
-    flexible_ids = all_ids - CRITICAL_IDS
+    flexible_ids = all_ids - critical_ids
 
     def tagged(allowed_ids, tier):
         found = _rank(_single_appliance_repairs(problem, allowed_ids) +
                        _two_appliance_repairs(problem, allowed_ids))
         for c in found:
             c['tier'] = tier
-            c['touches_critical'] = sorted({x['id'] for x in c['changed']} & CRITICAL_IDS)
+            c['touches_critical'] = sorted({x['id'] for x in c['changed']} & critical_ids)
         return found
 
     def take(candidates, results, seen):

@@ -203,6 +203,45 @@ def main():
     assert p == original_copy
     checks.append('find_repairs does not mutate its input problem')
 
+    # --- Phase B: custom critical_ids genuinely change the search, not just display ---
+    # Same default-scenario problem as above (infeasible, needs 1908 Wh): with
+    # fridge/router as critical, the known repairs are laptop->1h and fan->1h,
+    # both protects_essentials. Re-run with lamp+phone marked critical instead
+    # (and fridge/router left flexible) and confirm the search actually
+    # respects the new selection rather than silently keeping the old one.
+    custom = find_repairs(p, critical_ids=frozenset({'lamp', 'phone'}))
+    assert len(custom) >= 1
+    for r in custom:
+        touched = {c['id'] for c in r['changed']}
+        if r['tier'] == 'protects_essentials':
+            assert not touched & {'lamp', 'phone'}, 'protects_essentials must not touch the new essentials'
+        else:
+            assert touched & {'lamp', 'phone'}, 'requires_compromise must actually touch a new essential'
+        assert set(r['touches_critical']) <= {'lamp', 'phone'}, \
+            'touches_critical must reflect the passed-in critical_ids, not the module default'
+    # fridge/router are no longer protected, so reducing one of them alone
+    # (fridge -> 1h) must now be offered as a protects_essentials repair,
+    # which it never is under the default {fridge, router} criticality.
+    assert any(
+        r['tier'] == 'protects_essentials' and {c['id'] for c in r['changed']} == {'fridge'}
+        for r in custom
+    ), 'fridge must be freely reducible once it is not selected as essential'
+    checks.append("household-defined critical_ids ({'lamp','phone'}) change which repairs are "
+                   'found and how they are tagged, not just the default fridge/router pair')
+
+    # --- Phase B: no essentials selected -- every repair is protects_essentials ---
+    none_critical = find_repairs(p, critical_ids=frozenset())
+    assert len(none_critical) >= 1
+    assert all(r['tier'] == 'protects_essentials' for r in none_critical)
+    assert all(r['touches_critical'] == [] for r in none_critical)
+    checks.append('empty critical_ids: nothing can ever be tagged requires_compromise')
+
+    # --- Phase B: every appliance selected as essential -- compromise is forced ---
+    all_critical_repairs = find_repairs(p, critical_ids=frozenset(a['id'] for a in p['appliances']))
+    assert len(all_critical_repairs) >= 1
+    assert all(r['tier'] == 'requires_compromise' for r in all_critical_repairs)
+    checks.append('every appliance marked essential: every repair is forced into requires_compromise')
+
     print('PASS:', len(checks), 'checks')
     for c in checks:
         print(' -', c)

@@ -41,7 +41,8 @@ export function validateRequest(
   usableWh: number | undefined,
   maxW: number | undefined,
   appliances: ApplianceRequirement[] | undefined,
-): {usableWh: number; maxW: number; overrides: Record<string, number>} {
+  criticalIds?: string[],
+): {usableWh: number; maxW: number; overrides: Record<string, number>; criticalIds?: Set<string>} {
   const uw = usableWh ?? DEFAULT_USABLE_WH;
   const mw = maxW ?? DEFAULT_MAX_W;
   if (!Number.isInteger(uw) || !(uw >= 100 && uw <= 10000)) {
@@ -50,8 +51,22 @@ export function validateRequest(
   if (!Number.isInteger(mw) || !(mw >= 50 && mw <= 2000)) {
     throw new InputError('max_w must be an integer in 50..2000');
   }
+  let validatedCriticalIds: Set<string> | undefined;
+  if (criticalIds !== undefined) {
+    if (!Array.isArray(criticalIds) || criticalIds.some(id => typeof id !== 'string')) {
+      throw new InputError('critical_ids must be a list of appliance ids');
+    }
+    if (new Set(criticalIds).size !== criticalIds.length) {
+      throw new InputError('critical_ids must not contain duplicates');
+    }
+    const unknown = criticalIds.filter(id => !KNOWN_IDS.includes(id));
+    if (unknown.length > 0) {
+      throw new InputError(`unknown appliance id in critical_ids: ${unknown.join(', ')}`);
+    }
+    validatedCriticalIds = new Set(criticalIds);
+  }
   if (appliances === undefined) {
-    return {usableWh: uw, maxW: mw, overrides: {}};
+    return {usableWh: uw, maxW: mw, overrides: {}, criticalIds: validatedCriticalIds};
   }
   if (!Array.isArray(appliances) || appliances.length === 0) {
     throw new InputError('appliances must be a non-empty list');
@@ -70,7 +85,7 @@ export function validateRequest(
     }
     overrides[id] = required_hours;
   }
-  return {usableWh: uw, maxW: mw, overrides};
+  return {usableWh: uw, maxW: mw, overrides, criticalIds: validatedCriticalIds};
 }
 
 function buildProblem(usableWh: number, maxW: number, overrides: Record<string, number>): Problem {
@@ -147,6 +162,7 @@ function alternativeSummary(
   tier: 'protects_essentials' | 'requires_compromise',
   changedIds: Set<string>,
   touchesCritical: string[],
+  criticalIds: Set<string>,
 ): string {
   const changes = [...changedIds].sort().join(', ');
   if (tier === 'requires_compromise') {
@@ -156,13 +172,21 @@ function alternativeSummary(
       `protected by default. This repair reduces: ${changes}.`
     );
   }
-  return `Keeps every essential service (fridge, router) at its current hours. Reduces: ${changes}.`;
+  const kept = criticalIds.size > 0 ? [...criticalIds].sort().join(', ') : 'none selected';
+  return `Keeps every essential service (${kept}) at its current hours. Reduces: ${changes}.`;
 }
 
+// criticalIds: which appliance ids this household currently marks as
+// essential. Defaults to CRITICAL_IDS (fridge, router) when omitted, so
+// every pre-existing caller keeps its exact original behavior -- Phase B
+// (household-defined essentials) is the only caller that passes its own
+// selection, and that selection genuinely drives findRepairs' search, not
+// just this response's display fields.
 export function buildPlan(
   usableWh: number,
   maxW: number,
   overrides: Record<string, number>,
+  criticalIds: Set<string> = CRITICAL_IDS,
 ): Plan {
   const problem = buildProblem(usableWh, maxW, overrides);
   const result = solve(problem);
@@ -174,7 +198,7 @@ export function buildPlan(
   const verification = result.feasible ? check(problem, result.schedule) : null;
   const requestedWh = problem.appliances.reduce((s, a) => s + a.high_w * a.required_hours, 0);
   const defaultsById = defaultRequiredHours();
-  const criticalReduced = [...CRITICAL_IDS]
+  const criticalReduced = [...criticalIds]
     .filter(aid => {
       const current = problem.appliances.find(a => a.id === aid)!.required_hours;
       return current < defaultsById[aid];
@@ -191,7 +215,7 @@ export function buildPlan(
     critical_reduced: criticalReduced,
   };
 
-  const repairs = result.feasible ? [] : findRepairs(problem, 2);
+  const repairs = result.feasible ? [] : findRepairs(problem, 2, criticalIds);
   const allIds = new Set(problem.appliances.map(a => a.id));
   const labels = ['A', 'B'];
   const alternatives = repairs.map((repair, i) => {
@@ -203,7 +227,7 @@ export function buildPlan(
       changed: repair.changed,
       stays_powered: [...allIds].filter(id => !changedIds.has(id)).sort(),
       label: repair.changed.map(c => `${c.id}: ${c.from_hours}h → ${c.to_hours}h`).join(', '),
-      summary: alternativeSummary(repair.tier!, changedIds, repair.touches_critical!),
+      summary: alternativeSummary(repair.tier!, changedIds, repair.touches_critical!, criticalIds),
       problem: repair.problem,
       result: repair.result,
       independent_verification: repair.independent_verification,
@@ -221,7 +245,7 @@ export function buildPlan(
     outage_hours: OUTAGE_HOURS,
     budget_wh: usableWh,
     max_w: maxW,
-    critical_ids: [...CRITICAL_IDS].sort(),
+    critical_ids: [...criticalIds].sort(),
     limits:
       'Synthetic estimates. Hourly average loads. Startup surges, ' +
       'wiring and battery aging are not modeled. Not a guarantee.',

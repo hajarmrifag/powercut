@@ -36,9 +36,15 @@ export function fetchPlan(
   usableWh: number,
   maxW: number,
   appliances: ApplianceRequirement[],
+  criticalIds: string[],
 ): Promise<Plan> {
   return deferred(() => {
-    const {usableWh: uw, maxW: mw, overrides} = validateRequest(usableWh, maxW, appliances);
-    return buildPlan(uw, mw, overrides);
+    const {
+      usableWh: uw,
+      maxW: mw,
+      overrides,
+      criticalIds: validatedCriticalIds,
+    } = validateRequest(usableWh, maxW, appliances, criticalIds);
+    return buildPlan(uw, mw, overrides, validatedCriticalIds);
   });
 }

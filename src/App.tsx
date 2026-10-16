@@ -9,6 +9,7 @@ type Page = 'overview' | 'editAppliance' | 'editBattery' | 'alternatives';
 
 const OUTAGE_HOURS = 12;
 const APPLIANCE_IDS = ['fridge', 'router', 'lamp', 'phone', 'laptop', 'fan'];
+const DEFAULT_CRITICAL_IDS = new Set(['fridge', 'router']);
 
 function clamp(value: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, value));
@@ -19,6 +20,12 @@ export const App = () => {
   const [appliances, setAppliances] = useState<ApplianceRequirement[]>([]);
   const [usableWh, setUsableWh] = useState(1800);
   const [maxW, setMaxW] = useState(200);
+  // Which appliances this household currently marks essential. Seeded from
+  // the defaults' fridge/router pair, but from here on is purely local UI
+  // state the household controls (Phase B) -- every recompute() sends it
+  // to the engine, which is what actually makes the selection change which
+  // repairs get found, not just which badges get drawn.
+  const [criticalIds, setCriticalIds] = useState<Set<string>>(DEFAULT_CRITICAL_IDS);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +36,12 @@ export const App = () => {
   const backHandler = useKeplerBackHandler();
 
   const recompute = useCallback(
-    async (nextAppliances: ApplianceRequirement[], nextUsableWh: number, nextMaxW: number) => {
+    async (
+      nextAppliances: ApplianceRequirement[],
+      nextUsableWh: number,
+      nextMaxW: number,
+      nextCriticalIds: Set<string>,
+    ) => {
       if (busy.current) {
         return;
       }
@@ -37,11 +49,12 @@ export const App = () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchPlan(nextUsableWh, nextMaxW, nextAppliances);
+        const data = await fetchPlan(nextUsableWh, nextMaxW, nextAppliances, [...nextCriticalIds]);
         setPlan(data);
         setAppliances(nextAppliances);
         setUsableWh(nextUsableWh);
         setMaxW(nextMaxW);
+        setCriticalIds(nextCriticalIds);
       } catch (e) {
         setError(String(e));
       } finally {
@@ -58,7 +71,7 @@ export const App = () => {
         const d = await fetchDefaults();
         setDefaults(d);
         const initial = d.appliances.map(a => ({id: a.id, required_hours: a.required_hours}));
-        await recompute(initial, d.usable_wh, d.max_w);
+        await recompute(initial, d.usable_wh, d.max_w, DEFAULT_CRITICAL_IDS);
       } catch (e) {
         setError(String(e));
         setLoading(false);
@@ -106,7 +119,7 @@ export const App = () => {
     const info = applianceInfo?.[id];
     const bounded = clamp(hours, 0, OUTAGE_HOURS);
     const next = appliances.map(a => (a.id === id ? {...a, required_hours: bounded} : a));
-    recompute(next, usableWh, maxW);
+    recompute(next, usableWh, maxW, criticalIds);
     return info;
   }
 
@@ -115,6 +128,7 @@ export const App = () => {
       appliances,
       clamp(nextUsableWh, 100, 10000),
       clamp(nextMaxW, 50, 2000),
+      criticalIds,
     );
   }
 
@@ -123,7 +137,7 @@ export const App = () => {
       return;
     }
     const initial = defaults.appliances.map(a => ({id: a.id, required_hours: a.required_hours}));
-    recompute(initial, defaults.usable_wh, defaults.max_w);
+    recompute(initial, defaults.usable_wh, defaults.max_w, DEFAULT_CRITICAL_IDS);
   }
 
   function applyAlternative(alt: Alternative) {
@@ -131,8 +145,23 @@ export const App = () => {
       const change = alt.changed.find(c => c.id === a.id);
       return change ? {...a, required_hours: change.to_hours} : a;
     });
-    recompute(next, usableWh, maxW);
+    recompute(next, usableWh, maxW, criticalIds);
     setPage('overview');
+  }
+
+  // Toggling an appliance's essential status is a household choice, not a
+  // navigation action -- routed through recompute() like every other edit,
+  // so the in-flight guard and "Saving…" indicator cover it the same way,
+  // and the new selection is sent to the engine on the very next call
+  // (never just toggled in local display state and left stale).
+  function toggleEssential(id: string) {
+    const next = new Set(criticalIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    recompute(appliances, usableWh, maxW, next);
   }
 
   function renderStatusLine() {
@@ -200,7 +229,7 @@ export const App = () => {
         <TVFocusGuideView style={styles.applianceRow} autoFocus>
           {APPLIANCE_IDS.map((id, i) => {
             const info = applianceInfo?.[id];
-            const isCritical = !!info?.critical;
+            const isCritical = criticalIds.has(id);
             const wasReduced = plan?.requested.critical_reduced.includes(id);
             return (
               <Pressable
@@ -284,7 +313,7 @@ export const App = () => {
     const info = applianceInfo?.[editingId];
     const hours = hoursFor(editingId);
     const windowLen = info ? new Set(info.allowed_hours).size : OUTAGE_HOURS;
-    const isCritical = !!info?.critical;
+    const isCritical = criticalIds.has(editingId);
     return (
       <View style={styles.screen} testID="screen-edit-appliance">
         <Text style={styles.title}>
@@ -294,13 +323,11 @@ export const App = () => {
         <Text style={styles.subtitle}>
           {info ? `${info.low_w}-${info.high_w} W · available ${windowLen}h of this outage` : ''}
         </Text>
-        {isCritical && (
-          <Text style={styles.paragraph} testID="essential-note">
-            Fridge and router are protected by default: the automatic repair
-            search won't reduce them unless no other fix exists. Changing it
-            here is your own choice and is always respected.
-          </Text>
-        )}
+        <Text style={styles.paragraph} testID="essential-note">
+          {isCritical
+            ? "Marked essential: the automatic repair search won't reduce it unless no other fix exists."
+            : 'Not marked essential: the automatic repair search may reduce it freely to make a plan fit.'}
+        </Text>
         {renderStatusLine()}
         <Text style={styles.bigValue} testID="appliance-hours-value">{hours}h required</Text>
         <TVFocusGuideView style={styles.stepperRow} autoFocus>
@@ -328,6 +355,22 @@ export const App = () => {
             onPress={guard(() => setApplianceHours(editingId, 0))}
             style={[styles.stepperButton, focus === 'zero' && styles.cardFocused]}>
             <Text style={styles.stepperButtonText}>Off</Text>
+          </Pressable>
+        </TVFocusGuideView>
+        <TVFocusGuideView style={styles.stepperRow}>
+          <Pressable
+            testID="btn-toggle-essential"
+            accessibilityLabel={isCritical ? 'Unmark as essential' : 'Mark as essential'}
+            onFocus={() => setFocus('toggle-essential')}
+            onPress={guard(() => toggleEssential(editingId))}
+            style={[
+              styles.essentialToggle,
+              isCritical && styles.essentialToggleOn,
+              focus === 'toggle-essential' && styles.cardFocused,
+            ]}>
+            <Text style={styles.stepperButtonText}>
+              {isCritical ? '✓ Essential — unmark' : 'Mark as essential'}
+            </Text>
           </Pressable>
         </TVFocusGuideView>
         {plan && (
@@ -567,6 +610,15 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   stepperButtonText: {fontSize: type.h2, color: colors.text, fontWeight: 'bold'},
+  essentialToggle: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.bgCard,
+    borderWidth: 3,
+    borderColor: colors.bgCard,
+    borderRadius: 14,
+  },
+  essentialToggleOn: {borderColor: colors.accentDim},
   livePreview: {fontSize: type.h2, marginTop: spacing.lg, fontWeight: 'bold'},
   paragraph: {fontSize: type.body, color: colors.textDim, lineHeight: 29, marginTop: spacing.sm, marginBottom: spacing.sm},
   sectionTitle: {fontSize: type.h2, color: colors.accent, marginTop: spacing.md, marginBottom: spacing.sm},

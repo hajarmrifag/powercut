@@ -175,11 +175,11 @@ function rank(candidates: Repair[]): Repair[] {
   });
 }
 
-function tagWith(found: Repair[], tier: RepairTier): Repair[] {
+function tagWith(found: Repair[], tier: RepairTier, criticalIds: Set<string>): Repair[] {
   for (const c of found) {
     c.tier = tier;
     c.touches_critical = [...new Set(c.changed.map(x => x.id))]
-      .filter(id => CRITICAL_IDS.has(id))
+      .filter(id => criticalIds.has(id))
       .sort();
   }
   return found;
@@ -190,10 +190,10 @@ function tagWith(found: Repair[], tier: RepairTier): Repair[] {
 // candidate's own changed-appliance set is the source of truth for whether
 // it "requires a compromise", not an assumption that everything found
 // while essentials were back in scope must touch one.
-function tagByActualCriticality(found: Repair[]): Repair[] {
+function tagByActualCriticality(found: Repair[], criticalIds: Set<string>): Repair[] {
   for (const c of found) {
     c.touches_critical = [...new Set(c.changed.map(x => x.id))]
-      .filter(id => CRITICAL_IDS.has(id))
+      .filter(id => criticalIds.has(id))
       .sort();
     c.tier = c.touches_critical.length > 0 ? 'requires_compromise' : 'protects_essentials';
   }
@@ -215,20 +215,27 @@ function take(candidates: Repair[], results: Repair[], seen: Set<string>, maxRes
   return false;
 }
 
-export function findRepairs(problem: Problem, maxResults = 2): Repair[] {
+// criticalIds: which appliance ids the search should try to avoid
+// touching. Defaults to CRITICAL_IDS (fridge, router) when omitted, so
+// every pre-existing caller keeps its exact original behavior -- Phase B
+// (household-defined essentials) is the only caller that passes its own
+// current selection instead, and that selection genuinely drives this
+// search, not just the response's display fields.
+export function findRepairs(problem: Problem, maxResults = 2, criticalIds: Set<string> = CRITICAL_IDS): Repair[] {
   if (solve(problem).feasible) {
     return [];
   }
   const allIds = new Set(problem.appliances.map(a => a.id));
-  const flexibleIds = new Set([...allIds].filter(id => !CRITICAL_IDS.has(id)));
+  const flexibleIds = new Set([...allIds].filter(id => !criticalIds.has(id)));
 
   const results: Repair[] = [];
   const seen = new Set<string>();
 
-  // Tier 1: every repair reachable without touching fridge/router at all.
+  // Tier 1: every repair reachable without touching a critical id at all.
   const tier1 = tagWith(
     rank([...singleApplianceRepairs(problem, flexibleIds), ...twoApplianceRepairs(problem, flexibleIds)]),
     'protects_essentials',
+    criticalIds,
   );
   if (take(tier1, results, seen, maxResults)) {
     return results;
@@ -239,7 +246,7 @@ export function findRepairs(problem: Problem, maxResults = 2): Repair[] {
   // time against the same unchanged problem -- which can only reproduce
   // the exact same (already-collected-into `seen`) results, since nothing
   // about that search's inputs changed -- only search what tier 1
-  // couldn't: single-appliance repairs for fridge/router, and two-
+  // couldn't: single-appliance repairs for the critical ids, and two-
   // appliance pairs that include at least one of them. This is provably
   // equivalent to the old "search everyone again" approach: the skipped
   // flexible-only pairs are deterministic given `problem`, so re-running
@@ -250,9 +257,10 @@ export function findRepairs(problem: Problem, maxResults = 2): Repair[] {
   // that this produces byte-identical output to the unoptimized version.
   const tier2New = tagByActualCriticality(
     rank([
-      ...singleApplianceRepairs(problem, CRITICAL_IDS),
+      ...singleApplianceRepairs(problem, criticalIds),
       ...twoApplianceRepairs(problem, allIds, flexibleIds),
     ]),
+    criticalIds,
   );
   take(tier2New, results, seen, maxResults);
   return results;

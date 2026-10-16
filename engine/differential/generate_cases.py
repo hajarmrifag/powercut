@@ -36,21 +36,30 @@ def strip_nondeterministic(obj):
     return obj
 
 
-def case_from_overrides(name, usable_wh, max_w, overrides):
-    plan = server.build_plan(usable_wh, max_w, overrides)
+def case_from_overrides(name, usable_wh, max_w, overrides, critical_ids=None):
+    """critical_ids: None means "omit the field, use the engine's own
+    default (fridge, router)" -- exercising the pre-Phase-B call shape.
+    A set/list means a household's own essentials selection (Phase B);
+    passed straight through to the real, parameterized build_plan, and
+    recorded in the case's input so the TS side sends the identical
+    selection."""
+    plan = server.build_plan(usable_wh, max_w, overrides, critical_ids=critical_ids)
     # The real app always sends its full current six-appliance state, never
     # a partial delta -- so the recorded input mirrors that: fixture
     # defaults merged with overrides, same as build_problem() computes
     # internally, rather than just the overridden subset.
     full_state = {a['id']: a['required_hours'] for a in fixture(OUTAGE_HOURS)['appliances']}
     full_state.update(overrides)
+    case_input = {
+        'usable_wh': usable_wh,
+        'max_w': max_w,
+        'appliances': [{'id': k, 'required_hours': v} for k, v in full_state.items()],
+    }
+    if critical_ids is not None:
+        case_input['critical_ids'] = sorted(critical_ids)
     return {
         'name': name,
-        'input': {
-            'usable_wh': usable_wh,
-            'max_w': max_w,
-            'appliances': [{'id': k, 'required_hours': v} for k, v in full_state.items()],
-        },
+        'input': case_input,
         'expected': strip_nondeterministic(plan),
     }
 
@@ -96,6 +105,42 @@ def fixed_cases():
     # Very tight max_w, large usable_wh: exercises power_or_window_conflict.
     tight_power = case_from_overrides('tight_power_conflict', 10000, 55, {})
     cases.append(tight_power)
+
+    # --- Phase B: household-defined essentials (critical_ids parameter) ---
+    # Same default-scenario problem (infeasible, needs 1908 Wh) but with a
+    # completely different essentials selection -- fridge/router are now
+    # flexible, lamp/phone are protected instead. The known repairs
+    # (laptop->1h, fan->1h) must now disappear or be retagged, since they
+    # were only "protects_essentials" under the old default.
+    cases.append(case_from_overrides('custom_critical_lamp_phone', 1800, 200, {},
+                                      critical_ids={'lamp', 'phone'}))
+    # Nothing selected as essential: every repair must come back
+    # protects_essentials (there is nothing left to "compromise").
+    cases.append(case_from_overrides('custom_critical_none', 1800, 200, {},
+                                      critical_ids=set()))
+    # Everything selected as essential: the search can never avoid touching
+    # a critical id, so every repair must come back requires_compromise.
+    cases.append(case_from_overrides('custom_critical_all', 1800, 200, {},
+                                      critical_ids=set(KNOWN_IDS)))
+    # A single, non-default appliance marked essential.
+    cases.append(case_from_overrides('custom_critical_fan_only', 1800, 200, {},
+                                      critical_ids={'fan'}))
+    # Only fridge essential (router dropped) -- router must now be freely
+    # reducible, unlike under the fixed default.
+    cases.append(case_from_overrides('custom_critical_fridge_only', 1800, 200, {},
+                                      critical_ids={'fridge'}))
+    # The same forced-compromise scenario as 'forces_compromise_tier' above,
+    # but with router swapped out for lamp as the second essential -- stresses
+    # the fallback tier's pair search with a different, non-default pairing.
+    cases.append(case_from_overrides('custom_critical_forces_compromise', 1300, 200,
+                                      {'fridge': 12, 'router': 12, 'lamp': 4,
+                                       'phone': 1, 'laptop': 3, 'fan': 4},
+                                      critical_ids={'fridge', 'lamp'}))
+    # A household reduces its own newly-chosen essential (lamp) below its
+    # default full hours -- exercises critical_reduced with a non-default
+    # critical id.
+    cases.append(case_from_overrides('custom_critical_reduces_lamp', 1800, 200,
+                                      {'lamp': 2}, critical_ids={'lamp', 'phone'}))
     return cases
 
 
@@ -117,8 +162,34 @@ def randomized_cases(n, seed):
     return cases
 
 
+def randomized_critical_ids_cases(n, seed):
+    """Phase B: randomized scenarios that also randomize the household's
+    essentials selection -- a random-sized (including empty and
+    all-six) random subset of appliances, independent of which appliances
+    the fixed cases above happen to use. Covers combinations no hand-picked
+    case would think to try."""
+    rng = random.Random(seed)
+    cases = []
+    base = fixture(OUTAGE_HOURS)
+    caps = {a['id']: len(set(a['allowed_hours'])) for a in base['appliances']}
+    for i in range(n):
+        usable_wh = rng.randint(100, 2500)
+        max_w = rng.randint(50, 400)
+        overrides = {}
+        for aid in KNOWN_IDS:
+            if rng.random() < 0.8:
+                overrides[aid] = rng.randint(0, min(OUTAGE_HOURS, caps[aid] + rng.choice([0, 0, 1])))
+                overrides[aid] = min(overrides[aid], OUTAGE_HOURS)
+        subset_size = rng.randint(0, len(KNOWN_IDS))
+        critical_ids = set(rng.sample(KNOWN_IDS, subset_size))
+        cases.append(case_from_overrides(f'random_critical_{i}', usable_wh, max_w, overrides,
+                                          critical_ids=critical_ids))
+    return cases
+
+
 def main():
-    cases = fixed_cases() + randomized_cases(150, seed=20261016)
+    cases = fixed_cases() + randomized_cases(150, seed=20261016) + \
+        randomized_critical_ids_cases(60, seed=20261017)
     out = {'generated_count': len(cases), 'cases': cases}
     # Written under test/fixtures/ (not engine/differential/) so it sits
     # inside Jest's configured `roots` and can be imported as a plain JSON
