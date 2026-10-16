@@ -93,7 +93,7 @@ export const App = () => {
   // queued or allowed to race -- the "Saving…" indicator shown on every
   // screen makes that state visible instead of leaving a press to appear to
   // do nothing. Navigation-only presses (opening/leaving a screen) are not
-  // guarded, since they don't touch backend state.
+  // guarded, since they don't touch engine state.
   function guard(action: () => void) {
     return () => {
       if (!loading) {
@@ -143,7 +143,7 @@ export const App = () => {
       <Text
         style={error ? styles.errorText : styles.loadingText}
         testID={error ? 'status-error' : 'status-loading'}>
-        {error ? 'Backend error: ' + error : 'Saving…'}
+        {error ? 'Calculation error: ' + error : 'Saving…'}
       </Text>
     );
   }

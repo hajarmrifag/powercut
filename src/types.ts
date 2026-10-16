@@ -8,9 +8,11 @@ export type Appliance = {
 };
 
 export type Problem = {
+  synthetic: boolean;
   hours: number;
   usable_wh: number;
   max_w: number;
+  assumptions: string[];
   appliances: Appliance[];
 };
 

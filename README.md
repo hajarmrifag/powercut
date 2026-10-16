@@ -12,8 +12,12 @@ to two independently-verified repair alternatives — computed fresh for
 whatever you changed, not pulled from a fixed pair, and clearly marked by
 whether they protect the household's essential services (fridge, router)
 or require compromising one. Everything shown on screen is computed live by
-a local backend; the frontend never performs its own feasibility or energy
-math.
+a real constraint solver and independent verifier running **inside the app
+itself** (`src/engine/`, TypeScript) — no backend process, no network call,
+no client-side shortcut math. A standalone Python implementation of the
+same engine (`engine/`, `backend/server.py`) still exists as the reference
+implementation and the oracle for the differential test suite that proves
+the two match; see `docs/ENGINE_PORT.md`.
 
 ## What it does
 
@@ -24,9 +28,9 @@ math.
    calculation. Fridge and router are marked **essential** by default, with
    a warning if the household has itself reduced one below full.
 2. **Lets you edit any appliance's required runtime, and the battery's
-   capacity and output limit, with the remote.** Every change is sent to
-   the backend and the whole plan is recomputed and redisplayed immediately
-   — there is no client-side approximation in between.
+   capacity and output limit, with the remote.** Every change is recomputed
+   and redisplayed immediately by the in-app engine — there is no
+   client-side approximation, and nothing to wait on over a network.
 3. **Explains infeasibility in plain language**, tailored to whatever you
    changed: the minimum set of services that alone breaks the energy
    budget when the limit is energy, or which appliance needs more hours
@@ -59,21 +63,31 @@ math.
 powercut-app/
 ├── src/                     React Native (Vega/Kepler) frontend
 │   ├── App.tsx               Overview + appliance edit + battery edit + alternatives screens
-│   ├── api.ts                Typed fetch wrappers for GET /defaults and POST /plan
+│   ├── api.ts                 Calls the in-app engine (src/engine/), deferred one macrotask
 │   ├── theme.ts               Colors, spacing, type scale, appliance icons
-│   └── types.ts               TypeScript types for the backend's responses
-├── engine/                   Python constraint engine (vendored, see below)
+│   ├── types.ts               TypeScript types for the engine's Plan/Defaults responses
+│   └── engine/                TypeScript port of engine/ below — shipped, production path
+│       ├── solver.ts solver.py's exact DP solver + energy-conflict finder, ported
+│       ├── verifier.ts verifier.py's independent schedule checker, ported
+│       ├── repairs.ts repairs.py's essentials-aware repair search, ported
+│       ├── fixture.ts run_experiment.py's six-appliance fixture, ported
+│       └── plan.ts    server.py's build_plan/default_config orchestration, ported
+├── engine/                   Python constraint engine — reference implementation and
+│   │                         differential-test oracle for src/engine/, no longer used
+│   │                         by the shipped app (see docs/ENGINE_PORT.md)
 │   ├── solver.py              Exact DP solver + minimum-cardinality energy-conflict finder
 │   ├── verifier.py            Independent schedule checker + brute-force oracle
 │   ├── run_experiment.py      The six-appliance/battery problem fixture + its own test suite
 │   ├── repairs.py             Dynamic, essentials-aware, provably-minimal repair search
-│   └── test_repairs.py        Unit + adversarial brute-force tests for repairs.py
-├── backend/
+│   ├── test_repairs.py        Unit + adversarial brute-force tests for repairs.py
+│   └── differential/generate_cases.py  Generates expected outputs for the TS differential suite
+├── backend/                  Reference-implementation server, not used by the shipped app
 │   ├── server.py              Local HTTP server: GET /health, GET /defaults, POST /plan
 │   └── test_server.py         Malformed-input, impossible-constraint and tier-correctness tests
 ├── test/
-│   ├── App.spec.tsx           Jest tests for the full interactive frontend
-│   └── fixtures/               Real backend responses, captured live, used as test data
+│   ├── App.spec.tsx            Jest tests for the full interactive frontend
+│   ├── engine-differential.spec.ts  TS engine vs Python engine, 163 scenarios
+│   └── fixtures/               Real engine responses, captured live, used as test data
 ├── docs/
 │   ├── USER_TEST_PROTOCOL.md         Shared-screen two-adult test script
 │   ├── VEGA_SDK_FRICTION_LOG.md      Real SDK friction hit, with evidence
@@ -142,10 +156,23 @@ scope** — a configuration that genuinely needs three or more simultaneous
 changes is reported as infeasible with no
 automatic repair, not guessed at.
 
-### Backend (`backend/server.py`)
+### Engine (`src/engine/`)
+
+The shipped, production path. A TypeScript port of the solver, verifier,
+and repair search below, running in-process inside the app — `src/api.ts`
+calls it directly (deferred one macrotask so a calculation never blocks
+the frame that triggered it); there is no server and no network call.
+Proven identical to the Python reference across 163 differential-tested
+scenarios (164 Jest cases) — see `docs/ENGINE_PORT.md` for the full
+methodology and `docs/ENGINE_BENCHMARKS.md` for real on-device timing.
+
+### Reference implementation and test oracle (`backend/server.py`)
 
 A dependency-free `http.server` based service (Python 3 standard library
-only) that:
+only), **no longer used by the shipped app**, kept as the reference
+implementation the TypeScript engine is tested against and as a
+standalone way to exercise the same logic from Python. It still runs
+exactly as before if you want it (`python3 backend/server.py`), and does:
 
 - `GET /health` — liveness probe with a fresh nonce.
 - `GET /defaults` — the static appliance roster (ids, power ranges, allowed
@@ -178,16 +205,22 @@ Virtual Device output, not just desktop assumptions.
 
 ## Tests
 
-53 automated checks across the stack.
+217 automated checks across the stack.
 
-**Frontend** (Jest + TypeScript + ESLint):
+**Frontend + engine** (Jest + TypeScript + ESLint):
 ```
 cd powercut-app
 npm install
-npm test        # 15 tests: load, edit an appliance, edit battery, view/apply
-                 # alternatives, honest "no repair found", essential-service
-                 # badges, repair tier display, rapid-input reliability, and
-                 # per-screen error surfacing
+npm test        # 179 tests:
+                 #  - 15 UI tests: load, edit an appliance, edit battery,
+                 #    view/apply alternatives, honest "no repair found",
+                 #    essential-service badges, repair tier display,
+                 #    rapid-input reliability, per-screen error surfacing
+                 #  - 164 differential tests: the TypeScript engine
+                 #    (src/engine/) checked field-for-field against the
+                 #    real Python engine's output across 163 scenarios
+                 #    (13 fixed edge cases + 150 randomized); see
+                 #    docs/ENGINE_PORT.md
 npx tsc --noEmit
 npm run lint
 ```
@@ -242,20 +275,20 @@ npm run build:app        # produces build/aarch64-release/powercut_aarch64.vpkg
 ### Run
 
 ```bash
-# Terminal 1: start the backend
-cd powercut-app/backend
-python3 server.py        # listens on http://127.0.0.1:8766
-
-# Terminal 2: start the Virtual Device and install the app
 vega virtual-device start --timeout 120
 vega run-app build/aarch64-release/powercut_aarch64.vpkg com.hajar.powercut.main -d VirtualDevice
 ```
 
-The app connects to the backend at `http://10.0.2.2:8766` — the Virtual
-Device's gateway address for the host's loopback interface. D-pad
+One command, one terminal — the app's solver runs in-process, so there is
+no backend to start first and nothing to keep running alongside it. D-pad
 (Up/Down/Left/Right), Select, and Back all work through the standard Vega
 remote input path (physical remote, or `vega exec vda shell inputd-cli
 button_press KEY_*` for scripted testing).
+
+(The standalone Python backend from `backend/server.py` still works if you
+want to exercise the reference implementation directly — `python3
+backend/server.py`, then it listens on `http://127.0.0.1:8766` — but the
+shipped app does not call it.)
 
 ### Reliability notes (Phase 3 audit)
 
