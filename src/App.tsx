@@ -82,6 +82,23 @@ export const App = () => {
   const [focus, setFocus] = useState('fridge');
   const busy = useRef(false);
   const backHandler = useKeplerBackHandler();
+  const alternativesScrollRef = useRef<ScrollView>(null);
+
+  // TV focus engines scroll a focused element fully into view -- the
+  // alternatives screen's first card has hasTVPreferredFocus, and with the
+  // safety-caution text (Phase B) making a card taller, that auto-scroll
+  // was clipping the "Why this doesn't fit" heading above it on first
+  // entry. The fix is to explicitly re-scroll to the top right after that
+  // auto-scroll happens, rather than changing any layout or sizing.
+  useEffect(() => {
+    if (page === 'alternatives') {
+      const id = setTimeout(() => {
+        alternativesScrollRef.current?.scrollTo({y: 0, animated: false});
+      }, 0);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [page]);
 
   const recompute = useCallback(
     async (
@@ -508,7 +525,7 @@ export const App = () => {
       return null;
     }
     return (
-      <ScrollView style={styles.screen} testID="screen-alternatives">
+      <ScrollView ref={alternativesScrollRef} style={styles.screen} testID="screen-alternatives">
         <Text style={styles.title}>Why this doesn't fit</Text>
         <Text style={styles.paragraph}>{plan.requested.explanation}</Text>
         {renderStatusLine()}
@@ -650,7 +667,7 @@ const styles = StyleSheet.create({
   },
   cardFocused: {borderColor: colors.borderFocused, backgroundColor: colors.bgCardFocused},
   applianceIcon: {fontSize: 24, marginBottom: 2},
-  actionIcon: {fontSize: 26, marginRight: spacing.sm},
+  actionIcon: {fontSize: 26, marginRight: spacing.sm, color: colors.text},
   applianceName: {fontSize: 14, color: colors.text, fontWeight: '600'},
   applianceHours: {fontSize: type.h2, color: colors.accent, fontWeight: 'bold'},
   applianceWatts: {fontSize: 12, color: colors.textFaint},
@@ -706,5 +723,5 @@ const styles = StyleSheet.create({
   altSummary: {fontSize: type.small, color: colors.textDim, lineHeight: 22, marginTop: spacing.sm},
   altStat: {fontSize: type.small, color: colors.textDim, marginTop: spacing.sm},
   altVerified: {fontSize: type.small, marginTop: spacing.sm, fontWeight: '600'},
-  altApply: {fontSize: type.small, color: colors.textFaint, marginTop: spacing.sm},
+  altApply: {fontSize: type.small, color: colors.textDim, marginTop: spacing.sm},
 });
