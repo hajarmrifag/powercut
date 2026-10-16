@@ -397,13 +397,23 @@ That work set the scope and the correctness bar for everything below.
 The solver, verifier, and repair search were built and proven correct in
 Python first (`engine/`), with every optimality claim checked against an
 independent brute-force oracle rather than spot-checked by hand
-(`engine/test_repairs.py`, `engine/run_experiment.py`). That engine was
-then ported to TypeScript to run in-process inside the Vega app
-(`src/engine/`), with a 230-scenario differential test suite
+(`engine/test_repairs.py`, `engine/run_experiment.py`). That Python-side
+testing caught a real bug: a tied-repair ranking order that was
+nondeterministic across Python hash seeds, fixed with an explicit
+tiebreaker and reverified deterministic across ten hash seeds.
+
+The engine was then ported to TypeScript to run in-process inside the
+Vega app (`src/engine/`), with a 230-scenario differential test suite
 (`test/engine-differential.spec.ts`) proving the port matches the Python
-reference field for field. The port caught two real bugs along the way: a
-redundant repair-search re-scan, and a tied-repair ranking order that was
-nondeterministic across Python hash seeds (see `docs/ENGINE_PORT.md`).
+reference field for field. That differential testing caught a separate
+bug: the TypeScript fixture builder initially omitted metadata fields the
+Python original included on every problem object, fixed and reverified.
+
+Later on-device profiling found that the repair search's fallback tier
+was redundantly re-searching combinations its first tier had already
+covered. That was optimized separately, cutting solver calls by 18.3% in
+the worst case with no behavior change, confirmed by the full differential
+suite and by direct call-counting (see `docs/ENGINE_PORT.md`).
 
 Household-defined essential services (Phase B) extended the repair search
 itself, not just its display: marking or unmarking fridge or router on the
