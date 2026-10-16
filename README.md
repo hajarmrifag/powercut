@@ -116,23 +116,29 @@ docstrings). No third-party license obligations apply to them.
 
 ### Protecting essential services
 
-`engine/repairs.py` treats `fridge` and `router` as critical by default
-(`CRITICAL_IDS`) and searches for repairs in two tiers: first restricted to
-the four flexible appliances only (tier `protects_essentials`), and only if
-that search finds fewer than two repairs does it widen to include
-fridge/router too (tier `requires_compromise`, with `touches_critical`
-naming which one). This governs the *automatic search* only — a household's
-own direct edit to fridge or router's hours through the UI is never
-overridden, and is itself surfaced back to the household via the
-`requested.critical_reduced` field if they've knowingly reduced one below
-full.
+The household picks which appliances are essential, right on the remote
+(Phase B — `docs/PHASE_B.md` has the full design and on-device evidence).
+Fridge and router start essential by default, but any of the six can be
+marked or unmarked from its own edit screen, and that selection is sent
+to the engine on every recompute — it isn't just a display label.
 
-The critical/flexible split is a fixed backend default for this phase, not
-a user-facing setting — the household can still freely edit any appliance
-including fridge/router themselves, this only decides what the *automatic*
-repair search is willing to touch on its own. A per-household "mark this as
-essential" control is a reasonable next step but was left out to keep this
-phase's scope to what was asked.
+Given whatever set of ids the household currently has marked essential,
+`findRepairs`/`find_repairs` searches for repairs in two tiers: first
+restricted to the non-essential appliances only (tier
+`protects_essentials`), and only if that search finds fewer than two
+repairs does it widen to include the essential ones too (tier
+`requires_compromise`, with `touches_critical` naming which ones). This
+governs the *automatic search* only — a household's own direct edit to
+an essential appliance's hours through the UI is never overridden, and is
+itself surfaced back to the household via the `requested.critical_reduced`
+field if they've knowingly reduced one below full.
+
+Unmarking fridge or router stops the search from protecting it at all —
+a repair that reduces fridge is only ever possible, and only ever tagged
+`protects_essentials`, once fridge is not in the current selection. This
+is a real change to what the search will find and offer, not a relabel
+of the same fixed pair of repairs; see `docs/PHASE_B.md`'s "why this is a
+real algorithm change" section for a live on-device example.
 
 Every repair's sacrifice is proven minimal within its search scope, not
 just *a* feasible answer: the single-appliance case is exact by binary
@@ -210,22 +216,24 @@ Virtual Device output, not just desktop assumptions.
 
 ## Tests
 
-217 automated checks across the stack.
+292 automated checks across the stack.
 
 **Frontend + engine** (Jest + TypeScript + ESLint):
 ```
 cd powercut-app
 npm install
-npm test        # 179 tests:
-                 #  - 15 UI tests: load, edit an appliance, edit battery,
+npm test        # 250 tests:
+                 #  - 19 UI tests: load, edit an appliance, edit battery,
                  #    view/apply alternatives, honest "no repair found",
-                 #    essential-service badges, repair tier display,
-                 #    rapid-input reliability, per-screen error surfacing
-                 #  - 164 differential tests: the TypeScript engine
+                 #    essential-service badges and the mark/unmark-essential
+                 #    toggle (Phase B), repair tier display, rapid-input
+                 #    reliability, per-screen error surfacing
+                 #  - 231 differential tests: the TypeScript engine
                  #    (src/engine/) checked field-for-field against the
-                 #    real Python engine's output across 163 scenarios
-                 #    (13 fixed edge cases + 150 randomized); see
-                 #    docs/ENGINE_PORT.md
+                 #    real Python engine's output across 230 scenarios
+                 #    (20 fixed edge cases + 210 randomized, 67 of which
+                 #    also vary the household's essentials selection); see
+                 #    docs/ENGINE_PORT.md and docs/PHASE_B.md
 npx tsc --noEmit
 npm run lint
 ```
@@ -233,12 +241,13 @@ npm run lint
 **Backend** (Python standard library only, no dependencies):
 ```
 cd powercut-app/backend
-python3 test_server.py   # 11 checks: malformed input rejected, impossible-but-
+python3 test_server.py   # 12 checks: malformed input rejected, impossible-but-
                           # valid input solved not rejected, default scenario
                           # explained with 2 verified ranked repairs, feasible
                           # edits need no repair, extreme capacity honestly
                           # reports zero repairs rather than fabricating one,
-                          # critical-service tagging and compromise explanations
+                          # critical-service tagging and compromise explanations,
+                          # custom critical_ids validated and genuinely applied
 ```
 
 **Solver / verifier / repair search** (Python standard library only):
@@ -246,11 +255,11 @@ python3 test_server.py   # 11 checks: malformed input rejected, impossible-but-
 cd powercut-app/engine
 python3 run_experiment.py   # 16 checks: exhaustive oracle comparisons,
                              # mutation-rejection, timing
-python3 test_repairs.py     # 11 checks, including three adversarial checks:
+python3 test_repairs.py     # 14 checks, including three adversarial checks:
                              # single- and two-appliance search results are
                              # compared against an independent exhaustive
                              # oracle across multiple constructed scenarios
-                             # (not just spot-checked by hand), and repair
+                             # (not just spot-checked by hand), repair
                              # ranking is confirmed deterministic across ten
                              # PYTHONHASHSEED values on a genuine tie
 ```
@@ -350,9 +359,10 @@ private and nothing has been submitted.
 
 ## Scope and limitations
 
-This is a Phase 3 demonstration of the full edit → recompute → explain →
-protect-essentials-aware-repair → apply loop, not a finished consumer
-product. In particular:
+This is a demonstration of the full edit → recompute → explain →
+protect-essentials-aware-repair → apply loop, with the essentials
+selection itself now household-controlled (Phase B), not a finished
+consumer product. In particular:
 
 - Appliance power figures are synthetic estimates (hourly-average constant
   watts), not measured hardware profiles.
@@ -361,9 +371,9 @@ product. In particular:
 - The outage duration (12 hours) and the appliance roster (these six ids)
   are fixed; you can change how much of each you need, not add new
   appliances or change the outage length, in this phase.
-- Which two appliances are "essential" (fridge, router) is a fixed backend
-  default, not a per-household setting — see "Protecting essential
-  services" above for why, and what a next step would look like.
+- Which appliances are "essential" is now a per-household setting (fridge
+  and router are just the starting default) — see "Protecting essential
+  services" above.
 - The repair search considers reducing one or two appliances at a time; a
   configuration that genuinely needs three or more simultaneous reductions
   is reported as infeasible with no automatic repair, honestly, rather than
