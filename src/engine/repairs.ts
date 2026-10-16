@@ -104,7 +104,15 @@ function* combinationPairs<T>(items: T[]): Generator<[T, T]> {
   }
 }
 
-function twoApplianceRepairs(problem: Problem, allowedIds: Set<string>): Repair[] {
+function twoApplianceRepairs(
+  problem: Problem,
+  allowedIds: Set<string>,
+  // When given, skip any pair where BOTH ids already lie inside this set --
+  // used by findRepairs' fallback tier to avoid re-running the exact same
+  // pair search its first tier already completed (see that function for
+  // why this is provably safe to skip, not just an approximation).
+  skipPairsFullyWithin?: Set<string>,
+): Repair[] {
   const originals: Record<string, number> = {};
   for (const a of problem.appliances) {
     originals[a.id] = a.required_hours;
@@ -112,6 +120,9 @@ function twoApplianceRepairs(problem: Problem, allowedIds: Set<string>): Repair[
   const ids = [...allowedIds].filter(id => (originals[id] ?? 0) > 0).sort();
   const candidates: Repair[] = [];
   for (const [idA, idB] of combinationPairs(ids)) {
+    if (skipPairsFullyWithin?.has(idA) && skipPairsFullyWithin?.has(idB)) {
+      continue;
+    }
     const origA = originals[idA];
     const origB = originals[idB];
     type Point = {removed: number; touched: number; changes: Record<string, number>};
@@ -164,6 +175,46 @@ function rank(candidates: Repair[]): Repair[] {
   });
 }
 
+function tagWith(found: Repair[], tier: RepairTier): Repair[] {
+  for (const c of found) {
+    c.tier = tier;
+    c.touches_critical = [...new Set(c.changed.map(x => x.id))]
+      .filter(id => CRITICAL_IDS.has(id))
+      .sort();
+  }
+  return found;
+}
+
+// Tags each candidate by what it actually changed, rather than by which
+// search pass found it -- needed only for the fallback tier below, where a
+// candidate's own changed-appliance set is the source of truth for whether
+// it "requires a compromise", not an assumption that everything found
+// while essentials were back in scope must touch one.
+function tagByActualCriticality(found: Repair[]): Repair[] {
+  for (const c of found) {
+    c.touches_critical = [...new Set(c.changed.map(x => x.id))]
+      .filter(id => CRITICAL_IDS.has(id))
+      .sort();
+    c.tier = c.touches_critical.length > 0 ? 'requires_compromise' : 'protects_essentials';
+  }
+  return found;
+}
+
+function take(candidates: Repair[], results: Repair[], seen: Set<string>, maxResults: number): boolean {
+  for (const c of candidates) {
+    const k = [...new Set(c.changed.map(x => x.id))].sort().join(',');
+    if (seen.has(k)) {
+      continue;
+    }
+    seen.add(k);
+    results.push(c);
+    if (results.length >= maxResults) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function findRepairs(problem: Problem, maxResults = 2): Repair[] {
   if (solve(problem).feasible) {
     return [];
@@ -171,40 +222,38 @@ export function findRepairs(problem: Problem, maxResults = 2): Repair[] {
   const allIds = new Set(problem.appliances.map(a => a.id));
   const flexibleIds = new Set([...allIds].filter(id => !CRITICAL_IDS.has(id)));
 
-  function tagged(allowedIds: Set<string>, tier: RepairTier): Repair[] {
-    const found = rank([
-      ...singleApplianceRepairs(problem, allowedIds),
-      ...twoApplianceRepairs(problem, allowedIds),
-    ]);
-    for (const c of found) {
-      c.tier = tier;
-      c.touches_critical = [...new Set(c.changed.map(x => x.id))]
-        .filter(id => CRITICAL_IDS.has(id))
-        .sort();
-    }
-    return found;
-  }
-
-  function take(candidates: Repair[], results: Repair[], seen: Set<string>): boolean {
-    for (const c of candidates) {
-      const k = [...new Set(c.changed.map(x => x.id))].sort().join(',');
-      if (seen.has(k)) {
-        continue;
-      }
-      seen.add(k);
-      results.push(c);
-      if (results.length >= maxResults) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   const results: Repair[] = [];
   const seen = new Set<string>();
-  if (take(tagged(flexibleIds, 'protects_essentials'), results, seen)) {
+
+  // Tier 1: every repair reachable without touching fridge/router at all.
+  const tier1 = tagWith(
+    rank([...singleApplianceRepairs(problem, flexibleIds), ...twoApplianceRepairs(problem, flexibleIds)]),
+    'protects_essentials',
+  );
+  if (take(tier1, results, seen, maxResults)) {
     return results;
   }
-  take(tagged(allIds, 'requires_compromise'), results, seen);
+
+  // Tier 2 (fallback): tier 1 didn't find enough. Rather than re-running
+  // the identical flexible-only single- and two-appliance search a second
+  // time against the same unchanged problem -- which can only reproduce
+  // the exact same (already-collected-into `seen`) results, since nothing
+  // about that search's inputs changed -- only search what tier 1
+  // couldn't: single-appliance repairs for fridge/router, and two-
+  // appliance pairs that include at least one of them. This is provably
+  // equivalent to the old "search everyone again" approach: the skipped
+  // flexible-only pairs are deterministic given `problem`, so re-running
+  // them would yield the same candidates tier 1 already found (and `seen`
+  // would discard the duplicates anyway) or the same empty result tier 1
+  // already got. See docs/ENGINE_PORT.md and the differential suite
+  // (163 cases, including this exact fallback path) for the verification
+  // that this produces byte-identical output to the unoptimized version.
+  const tier2New = tagByActualCriticality(
+    rank([
+      ...singleApplianceRepairs(problem, CRITICAL_IDS),
+      ...twoApplianceRepairs(problem, allIds, flexibleIds),
+    ]),
+  );
+  take(tier2New, results, seen, maxResults);
   return results;
 }
