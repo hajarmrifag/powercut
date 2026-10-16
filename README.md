@@ -8,12 +8,12 @@ PowerCut shows a household's current appliance requirements and battery
 capacity on one screen, lets you change any of them with the D-pad, and
 recomputes feasibility against a real constraint solver after every change.
 When a configuration doesn't fit, it explains exactly why and generates up
-to two independently-verified repair alternatives — computed fresh for
+to two independently-verified repair alternatives, computed fresh for
 whatever you changed, not pulled from a fixed pair, and clearly marked by
 whether they protect the household's essential services (fridge, router)
 or require compromising one. Everything shown on screen is computed live by
 a real constraint solver and independent verifier running **inside the app
-itself** (`src/engine/`, TypeScript) — no backend process, no network call,
+itself** (`src/engine/`, TypeScript): no backend process, no network call,
 no client-side shortcut math. A standalone Python implementation of the
 same engine (`engine/`, `backend/server.py`) still exists as the reference
 implementation and the oracle for the differential test suite that proves
@@ -29,7 +29,7 @@ the two match; see `docs/ENGINE_PORT.md`.
    a warning if the household has itself reduced one below full.
 2. **Lets you edit any appliance's required runtime, and the battery's
    capacity and output limit, with the remote.** Every change is recomputed
-   and redisplayed immediately by the in-app engine — there is no
+   and redisplayed immediately by the in-app engine. There is no
    client-side approximation, and nothing to wait on over a network.
 3. **Explains infeasibility in plain language**, tailored to whatever you
    changed: the minimum set of services that alone breaks the energy
@@ -38,7 +38,7 @@ the two match; see `docs/ENGINE_PORT.md`.
    exceed the battery's output limit even though total energy is fine.
 4. **Generates up to two independently-verified repair alternatives**,
    each clearly labeled as either protecting the household's essential
-   services or requiring an explicit compromise on one — the automatic
+   services or requiring an explicit compromise on one: the automatic
    search (`engine/repairs.py`) only touches fridge/router when no repair
    exists that leaves them alone. Every repair is the proven
    minimum-sacrifice choice for the appliances it changes, not just *a*
@@ -49,7 +49,7 @@ the two match; see `docs/ENGINE_PORT.md`.
    pick one together.
 5. **Navigates entirely with the D-pad**, as a Fire TV app must: a compact
    two-row overview, per-appliance and battery edit screens with stepper
-   buttons, and a side-by-side alternatives screen — all built on the
+   buttons, and a side-by-side alternatives screen, all built on the
    standard Vega/Kepler remote-input APIs (`TVFocusGuideView`,
    `useKeplerBackHandler`), Back always returns to the overview. Every
    button that changes data ignores further presses while a request is in
@@ -66,13 +66,13 @@ powercut-app/
 │   ├── api.ts                 Calls the in-app engine (src/engine/), deferred one macrotask
 │   ├── theme.ts               Colors, spacing, type scale, appliance icons
 │   ├── types.ts               TypeScript types for the engine's Plan/Defaults responses
-│   └── engine/                TypeScript port of engine/ below — shipped, production path
+│   └── engine/                TypeScript port of engine/ below (shipped, production path)
 │       ├── solver.ts solver.py's exact DP solver + energy-conflict finder, ported
 │       ├── verifier.ts verifier.py's independent schedule checker, ported
 │       ├── repairs.ts repairs.py's essentials-aware repair search, ported
 │       ├── fixture.ts run_experiment.py's six-appliance fixture, ported
 │       └── plan.ts    server.py's build_plan/default_config orchestration, ported
-├── engine/                   Python constraint engine — reference implementation and
+├── engine/                   Python constraint engine: reference implementation and
 │   │                         differential-test oracle for src/engine/, no longer used
 │   │                         by the shipped app (see docs/ENGINE_PORT.md)
 │   ├── solver.py              Exact DP solver + minimum-cardinality energy-conflict finder
@@ -107,7 +107,7 @@ overloaded schedules, minimum-cardinality conflict certificates checked
 against all 41 smaller subsets). They were vendored here, rather than left
 in their original location outside this repository, so that **a fresh clone
 of `powercut-app` alone contains everything needed to build, test, and run
-the product** — no sibling directories required. `engine/repairs.py` is new
+the product**, with no sibling directories required. `engine/repairs.py` is new
 code built on top of them for Phase 2, using the same standard-library-only
 approach.
 
@@ -117,10 +117,10 @@ docstrings). No third-party license obligations apply to them.
 ### Protecting essential services
 
 The household picks which appliances are essential, right on the remote
-(Phase B — `docs/PHASE_B.md` has the full design and on-device evidence).
+(Phase B: `docs/PHASE_B.md` has the full design and on-device evidence).
 Fridge and router start essential by default, but any of the six can be
 marked or unmarked from its own edit screen, and that selection is sent
-to the engine on every recompute — it isn't just a display label.
+to the engine on every recompute. It isn't just a display label.
 
 Given whatever set of ids the household currently has marked essential,
 `findRepairs`/`find_repairs` searches for repairs in two tiers: first
@@ -128,12 +128,12 @@ restricted to the non-essential appliances only (tier
 `protects_essentials`), and only if that search finds fewer than two
 repairs does it widen to include the essential ones too (tier
 `requires_compromise`, with `touches_critical` naming which ones). This
-governs the *automatic search* only — a household's own direct edit to
+governs the *automatic search* only: a household's own direct edit to
 an essential appliance's hours through the UI is never overridden, and is
 itself surfaced back to the household via the `requested.critical_reduced`
 field if they've knowingly reduced one below full.
 
-Unmarking fridge or router stops the search from protecting it at all —
+Unmarking fridge or router stops the search from protecting it at all:
 a repair that reduces fridge is only ever possible, and only ever tagged
 `protects_essentials`, once fridge is not in the current selection. This
 is a real change to what the search will find and offer, not a relabel
@@ -144,37 +144,37 @@ Every repair's sacrifice is proven minimal within its search scope, not
 just *a* feasible answer: the single-appliance case is exact by binary
 search (feasibility is monotonic in required_hours), and the two-appliance
 case scans the full frontier from both appliances' sides and keeps
-whichever tied-minimum point touches fewer appliances — necessary because
+whichever tied-minimum point touches fewer appliances (necessary because
 scanning only one direction can land on an arbitrary tied point depending
-on iteration order (found and fixed during Phase 3; see the "adversarial"
+on iteration order; found and fixed during Phase 3, see the "adversarial"
 tests in `engine/test_repairs.py`, which compare every claim against an
 independent brute-force oracle). A second, separate ordering bug was found
 in the same pass: `_rank`'s sort key had no final tiebreaker, so when two
 *different* repairs genuinely tied on cost and appliance count, which one
 ranked first (which one the household sees as "Alternative A") depended on
-Python's per-process hash-seed-randomized set iteration order — confirmed
+Python's per-process hash-seed-randomized set iteration order, confirmed
 non-deterministic across `PYTHONHASHSEED` values on a constructed tied
 scenario before the fix, and deterministic after adding a sorted-ids
 tiebreaker; `test_repairs.py` now runs the real module in subprocesses
 across ten hash seeds on that scenario as a permanent regression check.
 **Optimality is claimed only within this one-or-two-appliance search
-scope** — a configuration that genuinely needs three or more simultaneous
+scope**: a configuration that genuinely needs three or more simultaneous
 changes is reported as infeasible with no
 automatic repair, not guessed at.
 
 ### Engine (`src/engine/`)
 
 The shipped, production path. A TypeScript port of the solver, verifier,
-and repair search below, running in-process inside the app — `src/api.ts`
+and repair search below, running in-process inside the app: `src/api.ts`
 calls it directly, deferred one macrotask so the button press's own
 visual feedback commits before the calculation starts. That deferral
 does not make the calculation itself fast or prevent the JS thread from
-blocking for its duration once it begins — most calls finish in well
+blocking for its duration once it begins. Most calls finish in well
 under one frame, but a rare worst case (repair search forced through
 both tiers) measures ~2 seconds; see `docs/ENGINE_BENCHMARKS.md` for the
 real numbers. There is no server and no network call either way. The
 engine itself is proven identical to the Python reference across 163
-differential-tested scenarios (164 Jest cases) — see `docs/ENGINE_PORT.md`
+differential-tested scenarios (164 Jest cases). See `docs/ENGINE_PORT.md`
 for the full methodology.
 
 ### Reference implementation and test oracle (`backend/server.py`)
@@ -185,16 +185,16 @@ implementation the TypeScript engine is tested against and as a
 standalone way to exercise the same logic from Python. It still runs
 exactly as before if you want it (`python3 backend/server.py`), and does:
 
-- `GET /health` — liveness probe with a fresh nonce.
-- `GET /defaults` — the static appliance roster (ids, power ranges, allowed
+- `GET /health`: liveness probe with a fresh nonce.
+- `GET /defaults`: the static appliance roster (ids, power ranges, allowed
   hours, which are `critical`) and default battery parameters, so the
   frontend can build its editable UI without duplicating that data.
-- `POST /plan` — takes the household's current state (`usable_wh`, `max_w`,
+- `POST /plan`: takes the household's current state (`usable_wh`, `max_w`,
   and a `required_hours` per appliance) and recomputes everything live, on
   every request, never cached: feasibility, a plain-English explanation
   when infeasible, whether the household has itself reduced an essential
   service (`critical_reduced`), and up to two independently-verified repair
-  alternatives — each tagged with its tier, which critical services (if
+  alternatives, each tagged with its tier, which critical services (if
   any) it touches, which appliances stay exactly as requested
   (`stays_powered`), and a plain-language trade-off summary. Malformed
   input (unknown appliance id, out-of-range or wrong-typed values,
@@ -210,7 +210,7 @@ React Native for Vega using `@amazon-devices/react-native-kepler`:
 `TVFocusGuideView` + `Pressable` for D-pad-navigable focus, and
 `useKeplerBackHandler` for hardware Back button handling. The overview's
 appliance and action cards are sized to fit entirely within one 1080p
-screen without scrolling — the display renders at roughly 2x the React
+screen without scrolling. The display renders at roughly 2x the React
 Native dp scale, so card and type sizes were tuned against the actual
 Virtual Device output, not just desktop assumptions.
 
@@ -269,7 +269,7 @@ python3 test_repairs.py     # 14 checks, including three adversarial checks:
 ### Prerequisites
 
 - Node.js >= 20, npm
-- Python 3 (standard library only — no pip dependencies)
+- Python 3 (standard library only, no pip dependencies)
 - The [Vega SDK](https://developer.amazon.com/docs/vega/0.24/install-vega-sdk)
   (`vega` CLI) with a Virtual Device image installed
 - **Clone to a path with no spaces.** The Vega native build toolchain
@@ -293,15 +293,15 @@ vega virtual-device start --timeout 120
 vega run-app build/aarch64-release/powercut_aarch64.vpkg com.hajar.powercut.main -d VirtualDevice
 ```
 
-One command, one terminal — the app's solver runs in-process, so there is
+One command, one terminal: the app's solver runs in-process, so there is
 no backend to start first and nothing to keep running alongside it. D-pad
 (Up/Down/Left/Right), Select, and Back all work through the standard Vega
 remote input path (physical remote, or `vega exec vda shell inputd-cli
 button_press KEY_*` for scripted testing).
 
 (The standalone Python backend from `backend/server.py` still works if you
-want to exercise the reference implementation directly — `python3
-backend/server.py`, then it listens on `http://127.0.0.1:8766` — but the
+want to exercise the reference implementation directly. Run `python3
+backend/server.py` and it listens on `http://127.0.0.1:8766`, but the
 shipped app does not call it.)
 
 ### Reliability notes (Phase 3 audit)
@@ -315,7 +315,7 @@ screen. Phase 3 investigated this directly rather than assuming it away:
   "Saving…" indicator on whichever screen you're on), instead of letting a
   second request race the first or silently vanishing with no feedback.
   Jest proves this holds even when a request is deliberately held open and
-  multiple presses are fired before it resolves — no request is ever
+  multiple presses are fired before it resolves: no request is ever
   dropped *without* the "Saving…" indicator explaining why, and no second
   request is ever sent while one is outstanding, so responses cannot
   arrive out of order by construction (there is never more than one in
@@ -329,8 +329,8 @@ screen. Phase 3 investigated this directly rather than assuming it away:
   twice more on the Virtual Device after these changes and produced the
   correct result both times (screenshots in
   `evidence/screenshots/phase3/04-*` and `05-*`). This is not proof the
-  original cause is identified and eliminated — two clean repeats of a
-  previously-rare event isn't strong evidence either way — but it is a
+  original cause is identified and eliminated (two clean repeats of a
+  previously-rare event isn't strong evidence either way), but it is a
   genuine attempt at reproduction with the fixes in place, not a dismissal.
   A real remote's natural pacing was never observed to trigger it.
 
@@ -338,9 +338,9 @@ screen. Phase 3 investigated this directly rather than assuming it away:
 
 `docs/USER_TEST_PROTOCOL.md` is a six-minute script for two adults sharing
 one screen and remote: a stable demo scenario (the shipped default), a
-minute-by-minute facilitator script — including one participant-directed
+minute-by-minute facilitator script, including one participant-directed
 appliance edit and a direct check on whether they distinguish energy (Wh)
-from power (W) — and what to record: whether they find and understand the
+from power (W), and what to record: whether they find and understand the
 conflict explanation unprompted, how they compare the two repair
 alternatives, and whether the shared screen visibly changes how they
 negotiate versus one person on a phone. It has not yet been run with real
@@ -372,7 +372,7 @@ consumer product. In particular:
   are fixed; you can change how much of each you need, not add new
   appliances or change the outage length, in this phase.
 - Which appliances are "essential" is now a per-household setting (fridge
-  and router are just the starting default) — see "Protecting essential
+  and router are just the starting default). See "Protecting essential
   services" above.
 - The repair search considers reducing one or two appliances at a time; a
   configuration that genuinely needs three or more simultaneous reductions
@@ -388,8 +388,32 @@ full scope of what was tested and what remains open.
 
 ## Development process
 
-This project was built with AI-assisted development (Claude Code). A prior
-feasibility assessment (Vega SDK environment checks, constraint-solver
-correctness testing, and a separate usability scoping exercise) preceded
-this implementation and is referenced above but is not part of this
-repository.
+A feasibility assessment preceded this implementation and is referenced
+throughout this README, though it is not part of this repository: Vega SDK
+environment checks, constraint-solver correctness testing against an
+independent brute-force oracle, and a separate usability scoping exercise.
+That work set the scope and the correctness bar for everything below.
+
+The solver, verifier, and repair search were built and proven correct in
+Python first (`engine/`), with every optimality claim checked against an
+independent brute-force oracle rather than spot-checked by hand
+(`engine/test_repairs.py`, `engine/run_experiment.py`). That engine was
+then ported to TypeScript to run in-process inside the Vega app
+(`src/engine/`), with a 230-scenario differential test suite
+(`test/engine-differential.spec.ts`) proving the port matches the Python
+reference field for field. The port caught two real bugs along the way: a
+redundant repair-search re-scan, and a tied-repair ranking order that was
+nondeterministic across Python hash seeds (see `docs/ENGINE_PORT.md`).
+
+Household-defined essential services (Phase B) extended the repair search
+itself, not just its display: marking or unmarking fridge or router on the
+remote changes which repairs the solver is willing to offer. That claim was
+verified on-device with the Python backend stopped, confirming the
+TypeScript engine alone drives the result (see `docs/PHASE_B.md`).
+
+Every phase was validated against the actual Vega Virtual Device rather
+than assumptions about it: D-pad focus and navigation, on-screen layout at
+the device's real 1080p/2x scale, rapid-input button-press races, and
+reinstall-and-relaunch checks with the reference backend confirmed stopped
+so the "no server" claim is demonstrated, not just asserted (see
+"Reliability notes" above and `docs/VEGA_SDK_FRICTION_LOG.md`).
