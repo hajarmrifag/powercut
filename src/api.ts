@@ -2,13 +2,17 @@
 // Python backend over HTTP. Same exported signatures as the old fetch()
 // implementation, so App.tsx needed no changes for this swap.
 //
-// Each call is deferred one macrotask (setTimeout 0) before running, so a
-// calculation never runs synchronously inside the same frame as the D-pad
-// press that triggered it — the press's own visual feedback (focus ring,
-// stepper highlight) gets to commit first. See docs/ENGINE_BENCHMARKS.md
-// for on-device timings showing the deferral is a safety margin, not a
-// necessity: every measured call, including worst-case repair search,
-// completes in well under one frame.
+// Each call is deferred one macrotask (setTimeout 0) before running. That
+// only guarantees the *triggering* frame (the D-pad press's own focus-ring/
+// stepper-highlight update) gets to commit before the calculation starts —
+// it is not a guarantee the calculation itself is fast, and it does NOT
+// prevent the JS thread from blocking once the deferred call is running.
+// Measured on-device, most calls finish in well under one frame, but the
+// worst case (a repair search forced through both essentials-protecting
+// and compromise tiers) measured ~2 seconds and blocks the thread for that
+// whole span — see docs/ENGINE_BENCHMARKS.md. The UI's existing "Saving…"
+// indicator (src/App.tsx) is what actually covers that case, not this
+// deferral.
 import type {ApplianceRequirement, Defaults, Plan} from './types';
 import {buildPlan, defaultConfig, validateRequest} from './engine';
 

@@ -82,9 +82,13 @@ measurement error.)
 ## What this means in practice
 
 - The scenario actually used in the shipped demo (default scenario,
-  single repair tier) is 43ms median, 182ms worst-of-10 — well within
-  what feels instant for a button press, especially deferred one
-  macrotask as it already is.
+  single repair tier) is 43ms median, 182ms worst-of-10 — fast enough on
+  its own to feel instant for a button press. The one-macrotask deferral
+  in `src/api.ts` doesn't make this faster; it only ensures the press's
+  own visual feedback commits before the calculation starts. The JS
+  thread is still blocked for the calculation's own duration once it
+  begins, whatever that duration turns out to be — see the worst case
+  below.
 - The ~2-second worst case is real but is a narrow edge case: it only
   happens when a household's own edits leave literally no
   essentials-preserving repair available. It does not crash or freeze

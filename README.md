@@ -160,11 +160,16 @@ automatic repair, not guessed at.
 
 The shipped, production path. A TypeScript port of the solver, verifier,
 and repair search below, running in-process inside the app — `src/api.ts`
-calls it directly (deferred one macrotask so a calculation never blocks
-the frame that triggered it); there is no server and no network call.
-Proven identical to the Python reference across 163 differential-tested
-scenarios (164 Jest cases) — see `docs/ENGINE_PORT.md` for the full
-methodology and `docs/ENGINE_BENCHMARKS.md` for real on-device timing.
+calls it directly, deferred one macrotask so the button press's own
+visual feedback commits before the calculation starts. That deferral
+does not make the calculation itself fast or prevent the JS thread from
+blocking for its duration once it begins — most calls finish in well
+under one frame, but a rare worst case (repair search forced through
+both tiers) measures ~2 seconds; see `docs/ENGINE_BENCHMARKS.md` for the
+real numbers. There is no server and no network call either way. The
+engine itself is proven identical to the Python reference across 163
+differential-tested scenarios (164 Jest cases) — see `docs/ENGINE_PORT.md`
+for the full methodology.
 
 ### Reference implementation and test oracle (`backend/server.py`)
 
