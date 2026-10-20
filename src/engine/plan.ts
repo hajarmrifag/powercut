@@ -1,6 +1,6 @@
 // Ported from backend/server.py's business logic (validate_request,
 // build_problem, explain_infeasibility, build_plan, default_config).
-// Runs entirely in-process — no HTTP, no localhost, no Python server
+// Runs entirely in-process: no HTTP, no localhost, no Python server
 // dependency. See src/api.ts for the thin wrapper that replaces the old
 // fetch()-based calls with these functions.
 import type {
@@ -112,7 +112,7 @@ function explainInfeasibility(
     return [
       `Running ${conflict.services.join(', ')} for their full requested ` +
         `hours needs ${conflict.required_wh} Wh, but only ` +
-        `${conflict.budget_wh} Wh is available — a shortfall of ` +
+        `${conflict.budget_wh} Wh is available: a shortfall of ` +
         `${shortfall} Wh. That is the smallest set of services that alone ` +
         `breaks the battery budget.`,
       conflict,

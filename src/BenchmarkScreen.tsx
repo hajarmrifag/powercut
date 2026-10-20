@@ -75,7 +75,7 @@ export const BenchmarkScreen = () => {
 
       // Worst case: forces both the protects_essentials tier AND the
       // requires_compromise fallback tier to run their full single+pair
-      // search (usable_wh=1300 with every appliance at its maximum hours —
+      // search (usable_wh=1300 with every appliance at its maximum hours,
       // same scenario as the 'forces_compromise_tier' differential case).
       await push('worst-case repair search (both tiers) x10', 10, () => {
         buildPlan(1300, 200, {

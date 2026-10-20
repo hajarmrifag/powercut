@@ -1,4 +1,4 @@
-// Ported from engine/run_experiment.py's fixture() — the six-appliance
+// Ported from engine/run_experiment.py's fixture(), the six-appliance
 // roster definition. Appliance order and ids must stay exactly in sync
 // with the Python original: combinations()-order-dependent code
 // (energyConflict) and every captured fixture/screenshot assume this order.

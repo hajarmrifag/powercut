@@ -1,6 +1,6 @@
 // Ported from engine/repairs.py. See that file's module docstring for the
 // full design rationale (two-tier essentials-first search, optimality
-// scope, protected-services semantics) — preserved unchanged here.
+// scope, protected-services semantics), preserved unchanged here.
 import type {ChangedAppliance, Problem, RepairTier} from '../types';
 import {solve} from './solver';
 import {check} from './verifier';

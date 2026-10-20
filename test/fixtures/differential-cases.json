@@ -176,7 +176,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -2133,7 +2133,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1690 Wh is available \u2014 a shortfall of 145 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1690 Wh is available: a shortfall of 145 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -2990,7 +2990,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1803 Wh, but only 1800 Wh is available \u2014 a shortfall of 3 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1803 Wh, but only 1800 Wh is available: a shortfall of 3 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1828,
           "critical_reduced": []
@@ -4124,7 +4124,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -4975,7 +4975,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 100 Wh is available \u2014 a shortfall of 980 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 100 Wh is available: a shortfall of 980 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -5859,7 +5859,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1300 Wh is available \u2014 a shortfall of 140 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1300 Wh is available: a shortfall of 140 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -6545,7 +6545,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -7399,7 +7399,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -8267,7 +8267,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -9129,7 +9129,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -9987,7 +9987,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -10843,7 +10843,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1300 Wh is available \u2014 a shortfall of 140 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1300 Wh is available: a shortfall of 140 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1908,
           "critical_reduced": []
@@ -11359,7 +11359,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available \u2014 a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1835 Wh, but only 1800 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1884,
           "critical_reduced": [
@@ -12209,7 +12209,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, fan for their full requested hours needs 990 Wh, but only 646 Wh is available \u2014 a shortfall of 344 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, fan for their full requested hours needs 990 Wh, but only 646 Wh is available: a shortfall of 344 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1098,
           "critical_reduced": [
@@ -13362,7 +13362,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1014 Wh is available \u2014 a shortfall of 66 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1014 Wh is available: a shortfall of 66 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1801,
           "critical_reduced": [
@@ -13862,7 +13862,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router, fan for their full requested hours needs 820 Wh, but only 751 Wh is available \u2014 a shortfall of 69 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router, fan for their full requested hours needs 820 Wh, but only 751 Wh is available: a shortfall of 69 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1024,
           "critical_reduced": [
@@ -14665,7 +14665,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router, phone for their full requested hours needs 370 Wh, but only 366 Wh is available \u2014 a shortfall of 4 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router, phone for their full requested hours needs 370 Wh, but only 366 Wh is available: a shortfall of 4 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 761,
           "critical_reduced": [
@@ -14848,7 +14848,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 540 Wh, but only 204 Wh is available \u2014 a shortfall of 336 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 540 Wh, but only 204 Wh is available: a shortfall of 336 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1458,
           "critical_reduced": [
@@ -15914,7 +15914,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 765 Wh is available \u2014 a shortfall of 135 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 765 Wh is available: a shortfall of 135 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2258,
           "critical_reduced": [
@@ -17251,7 +17251,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 812 Wh is available \u2014 a shortfall of 88 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 812 Wh is available: a shortfall of 88 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1411,
           "critical_reduced": [
@@ -17741,7 +17741,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1236 Wh, but only 1217 Wh is available \u2014 a shortfall of 19 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1236 Wh, but only 1217 Wh is available: a shortfall of 19 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1236,
           "critical_reduced": [
@@ -18549,7 +18549,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1843 Wh, but only 1815 Wh is available \u2014 a shortfall of 28 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1843 Wh, but only 1815 Wh is available: a shortfall of 28 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1893,
           "critical_reduced": [
@@ -19726,7 +19726,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fan for their full requested hours needs 600 Wh, but only 407 Wh is available \u2014 a shortfall of 193 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fan for their full requested hours needs 600 Wh, but only 407 Wh is available: a shortfall of 193 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1297,
           "critical_reduced": [
@@ -20837,7 +20837,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 720 Wh, but only 235 Wh is available \u2014 a shortfall of 485 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 720 Wh, but only 235 Wh is available: a shortfall of 485 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1528,
           "critical_reduced": [
@@ -21353,7 +21353,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, laptop for their full requested hours needs 1045 Wh, but only 940 Wh is available \u2014 a shortfall of 105 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, laptop for their full requested hours needs 1045 Wh, but only 940 Wh is available: a shortfall of 105 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1718,
           "critical_reduced": [
@@ -23008,7 +23008,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router for their full requested hours needs 360 Wh, but only 351 Wh is available \u2014 a shortfall of 9 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router for their full requested hours needs 360 Wh, but only 351 Wh is available: a shortfall of 9 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1033,
           "critical_reduced": [
@@ -23481,7 +23481,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 990 Wh, but only 581 Wh is available \u2014 a shortfall of 409 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 990 Wh, but only 581 Wh is available: a shortfall of 409 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2053,
           "critical_reduced": [
@@ -24334,7 +24334,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 875 Wh, but only 845 Wh is available \u2014 a shortfall of 30 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 875 Wh, but only 845 Wh is available: a shortfall of 30 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 948,
           "critical_reduced": [
@@ -25174,7 +25174,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 707 Wh is available \u2014 a shortfall of 373 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 707 Wh is available: a shortfall of 373 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2018,
           "critical_reduced": []
@@ -26016,7 +26016,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1980 Wh, but only 1921 Wh is available \u2014 a shortfall of 59 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1980 Wh, but only 1921 Wh is available: a shortfall of 59 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2445,
           "critical_reduced": [
@@ -26877,7 +26877,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1720 Wh, but only 1511 Wh is available \u2014 a shortfall of 209 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1720 Wh, but only 1511 Wh is available: a shortfall of 209 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1855,
           "critical_reduced": [
@@ -27741,7 +27741,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, laptop for their full requested hours needs 1340 Wh, but only 1269 Wh is available \u2014 a shortfall of 71 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, laptop for their full requested hours needs 1340 Wh, but only 1269 Wh is available: a shortfall of 71 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2006,
           "critical_reduced": [
@@ -29169,7 +29169,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fan for their full requested hours needs 450 Wh, but only 448 Wh is available \u2014 a shortfall of 2 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fan for their full requested hours needs 450 Wh, but only 448 Wh is available: a shortfall of 2 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 895,
           "critical_reduced": [
@@ -30270,7 +30270,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, fan for their full requested hours needs 880 Wh, but only 874 Wh is available \u2014 a shortfall of 6 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, fan for their full requested hours needs 880 Wh, but only 874 Wh is available: a shortfall of 6 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1171,
           "critical_reduced": [
@@ -31072,7 +31072,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 750 Wh, but only 726 Wh is available \u2014 a shortfall of 24 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 750 Wh, but only 726 Wh is available: a shortfall of 24 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 811,
           "critical_reduced": [
@@ -32054,7 +32054,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1235 Wh, but only 1134 Wh is available \u2014 a shortfall of 101 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1235 Wh, but only 1134 Wh is available: a shortfall of 101 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1358,
           "critical_reduced": [
@@ -33930,7 +33930,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fan for their full requested hours needs 400 Wh, but only 293 Wh is available \u2014 a shortfall of 107 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fan for their full requested hours needs 400 Wh, but only 293 Wh is available: a shortfall of 107 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 842,
           "critical_reduced": [
@@ -35340,7 +35340,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1460 Wh, but only 1394 Wh is available \u2014 a shortfall of 66 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1460 Wh, but only 1394 Wh is available: a shortfall of 66 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1663,
           "critical_reduced": [
@@ -38193,7 +38193,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, phone, laptop for their full requested hours needs 1495 Wh, but only 1486 Wh is available \u2014 a shortfall of 9 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, phone, laptop for their full requested hours needs 1495 Wh, but only 1486 Wh is available: a shortfall of 9 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1757,
           "critical_reduced": [
@@ -39512,7 +39512,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1052 Wh is available \u2014 a shortfall of 28 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1052 Wh is available: a shortfall of 28 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2486,
           "critical_reduced": [
@@ -40661,7 +40661,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 450 Wh, but only 176 Wh is available \u2014 a shortfall of 274 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 450 Wh, but only 176 Wh is available: a shortfall of 274 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1188,
           "critical_reduced": [
@@ -41689,7 +41689,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 855 Wh is available \u2014 a shortfall of 225 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 855 Wh is available: a shortfall of 225 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1677,
           "critical_reduced": []
@@ -42180,7 +42180,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 450 Wh, but only 331 Wh is available \u2014 a shortfall of 119 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 450 Wh, but only 331 Wh is available: a shortfall of 119 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1485,
           "critical_reduced": [
@@ -42902,7 +42902,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 471 Wh is available \u2014 a shortfall of 429 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 471 Wh is available: a shortfall of 429 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1384,
           "critical_reduced": [
@@ -43686,7 +43686,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 845 Wh is available \u2014 a shortfall of 55 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 845 Wh is available: a shortfall of 55 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1810,
           "critical_reduced": [
@@ -43872,7 +43872,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 970 Wh, but only 888 Wh is available \u2014 a shortfall of 82 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 970 Wh, but only 888 Wh is available: a shortfall of 82 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1018,
           "critical_reduced": [
@@ -46795,7 +46795,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1170 Wh, but only 870 Wh is available \u2014 a shortfall of 300 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1170 Wh, but only 870 Wh is available: a shortfall of 300 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1928,
           "critical_reduced": [
@@ -47752,7 +47752,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 540 Wh, but only 489 Wh is available \u2014 a shortfall of 51 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 540 Wh, but only 489 Wh is available: a shortfall of 51 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1008,
           "critical_reduced": [
@@ -48236,7 +48236,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 2013 Wh, but only 1976 Wh is available \u2014 a shortfall of 37 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 2013 Wh, but only 1976 Wh is available: a shortfall of 37 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2013,
           "critical_reduced": [
@@ -49887,7 +49887,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1170 Wh, but only 1164 Wh is available \u2014 a shortfall of 6 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1170 Wh, but only 1164 Wh is available: a shortfall of 6 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2158,
           "critical_reduced": [
@@ -50730,7 +50730,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, lamp, fan for their full requested hours needs 1230 Wh, but only 1203 Wh is available \u2014 a shortfall of 27 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, lamp, fan for their full requested hours needs 1230 Wh, but only 1203 Wh is available: a shortfall of 27 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1410,
           "critical_reduced": [
@@ -51578,7 +51578,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1080 Wh, but only 973 Wh is available \u2014 a shortfall of 107 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1080 Wh, but only 973 Wh is available: a shortfall of 107 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1948,
           "critical_reduced": [
@@ -52770,7 +52770,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 810 Wh, but only 200 Wh is available \u2014 a shortfall of 610 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 810 Wh, but only 200 Wh is available: a shortfall of 610 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1308,
           "critical_reduced": [
@@ -52953,7 +52953,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 270 Wh, but only 127 Wh is available \u2014 a shortfall of 143 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 270 Wh, but only 127 Wh is available: a shortfall of 143 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 651,
           "critical_reduced": [
@@ -54919,7 +54919,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 545 Wh is available \u2014 a shortfall of 535 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 545 Wh is available: a shortfall of 535 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1721,
           "critical_reduced": []
@@ -55713,7 +55713,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fan for their full requested hours needs 600 Wh, but only 593 Wh is available \u2014 a shortfall of 7 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fan for their full requested hours needs 600 Wh, but only 593 Wh is available: a shortfall of 7 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1331,
           "critical_reduced": [
@@ -56489,7 +56489,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 538 Wh is available \u2014 a shortfall of 542 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 538 Wh is available: a shortfall of 542 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2255,
           "critical_reduced": []
@@ -56671,7 +56671,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1250 Wh, but only 967 Wh is available \u2014 a shortfall of 283 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1250 Wh, but only 967 Wh is available: a shortfall of 283 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1323,
           "critical_reduced": [
@@ -57486,7 +57486,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router for their full requested hours needs 330 Wh, but only 277 Wh is available \u2014 a shortfall of 53 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router for their full requested hours needs 330 Wh, but only 277 Wh is available: a shortfall of 53 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1032,
           "critical_reduced": [
@@ -59270,7 +59270,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router, laptop for their full requested hours needs 815 Wh, but only 501 Wh is available \u2014 a shortfall of 314 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router, laptop for their full requested hours needs 815 Wh, but only 501 Wh is available: a shortfall of 314 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1063,
           "critical_reduced": [
@@ -60554,7 +60554,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 180 Wh is available \u2014 a shortfall of 900 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 180 Wh is available: a shortfall of 900 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2158,
           "critical_reduced": [
@@ -60738,7 +60738,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1080 Wh, but only 969 Wh is available \u2014 a shortfall of 111 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1080 Wh, but only 969 Wh is available: a shortfall of 111 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1337,
           "critical_reduced": [
@@ -62259,7 +62259,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 360 Wh, but only 260 Wh is available \u2014 a shortfall of 100 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 360 Wh, but only 260 Wh is available: a shortfall of 100 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1409,
           "critical_reduced": [
@@ -62441,7 +62441,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 579 Wh is available \u2014 a shortfall of 501 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 579 Wh is available: a shortfall of 501 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2061,
           "critical_reduced": [
@@ -63788,7 +63788,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router, lamp, phone, laptop, fan for their full requested hours needs 1049 Wh, but only 1033 Wh is available \u2014 a shortfall of 16 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router, lamp, phone, laptop, fan for their full requested hours needs 1049 Wh, but only 1033 Wh is available: a shortfall of 16 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1049,
           "critical_reduced": [
@@ -65398,7 +65398,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 2240 Wh, but only 2093 Wh is available \u2014 a shortfall of 147 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 2240 Wh, but only 2093 Wh is available: a shortfall of 147 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2265,
           "critical_reduced": [
@@ -66259,7 +66259,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 306 Wh is available \u2014 a shortfall of 774 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 306 Wh is available: a shortfall of 774 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1778,
           "critical_reduced": [
@@ -66442,7 +66442,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1361 Wh is available \u2014 a shortfall of 79 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1361 Wh is available: a shortfall of 79 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1688,
           "critical_reduced": []
@@ -67270,7 +67270,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, laptop for their full requested hours needs 1275 Wh, but only 1194 Wh is available \u2014 a shortfall of 81 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, laptop for their full requested hours needs 1275 Wh, but only 1194 Wh is available: a shortfall of 81 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1538,
           "critical_reduced": [
@@ -67767,7 +67767,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 720 Wh, but only 160 Wh is available \u2014 a shortfall of 560 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 720 Wh, but only 160 Wh is available: a shortfall of 560 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1585,
           "critical_reduced": [
@@ -67951,7 +67951,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, fan for their full requested hours needs 1300 Wh, but only 1247 Wh is available \u2014 a shortfall of 53 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, fan for their full requested hours needs 1300 Wh, but only 1247 Wh is available: a shortfall of 53 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1715,
           "critical_reduced": [
@@ -69331,7 +69331,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1381 Wh, but only 1366 Wh is available \u2014 a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, lamp, laptop, fan for their full requested hours needs 1381 Wh, but only 1366 Wh is available: a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1456,
           "critical_reduced": [
@@ -70167,7 +70167,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 810 Wh, but only 315 Wh is available \u2014 a shortfall of 495 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 810 Wh, but only 315 Wh is available: a shortfall of 495 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1680,
           "critical_reduced": [
@@ -70628,7 +70628,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router, phone, laptop, fan for their full requested hours needs 1295 Wh, but only 1259 Wh is available \u2014 a shortfall of 36 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router, phone, laptop, fan for their full requested hours needs 1295 Wh, but only 1259 Wh is available: a shortfall of 36 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1319,
           "critical_reduced": [
@@ -71467,7 +71467,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 450 Wh, but only 279 Wh is available \u2014 a shortfall of 171 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 450 Wh, but only 279 Wh is available: a shortfall of 171 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 933,
           "critical_reduced": [
@@ -71651,7 +71651,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, fan for their full requested hours needs 1050 Wh, but only 841 Wh is available \u2014 a shortfall of 209 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, fan for their full requested hours needs 1050 Wh, but only 841 Wh is available: a shortfall of 209 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1484,
           "critical_reduced": [
@@ -72144,7 +72144,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1735 Wh, but only 1605 Wh is available \u2014 a shortfall of 130 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop, fan for their full requested hours needs 1735 Wh, but only 1605 Wh is available: a shortfall of 130 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1785,
           "critical_reduced": [
@@ -72630,7 +72630,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router, lamp for their full requested hours needs 258 Wh, but only 243 Wh is available \u2014 a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router, lamp for their full requested hours needs 258 Wh, but only 243 Wh is available: a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 678,
           "critical_reduced": [
@@ -74672,7 +74672,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 360 Wh, but only 207 Wh is available \u2014 a shortfall of 153 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 360 Wh, but only 207 Wh is available: a shortfall of 153 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1240,
           "critical_reduced": [
@@ -75556,7 +75556,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, fan for their full requested hours needs 780 Wh, but only 754 Wh is available \u2014 a shortfall of 26 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, fan for their full requested hours needs 780 Wh, but only 754 Wh is available: a shortfall of 26 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1046,
           "critical_reduced": [
@@ -76048,7 +76048,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop for their full requested hours needs 1740 Wh, but only 1539 Wh is available \u2014 a shortfall of 201 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop for their full requested hours needs 1740 Wh, but only 1539 Wh is available: a shortfall of 201 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2013,
           "critical_reduced": [
@@ -77230,7 +77230,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1137 Wh is available \u2014 a shortfall of 303 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1440 Wh, but only 1137 Wh is available: a shortfall of 303 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1896,
           "critical_reduced": []
@@ -78546,7 +78546,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 180 Wh, but only 135 Wh is available \u2014 a shortfall of 45 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 180 Wh, but only 135 Wh is available: a shortfall of 45 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1058,
           "critical_reduced": [
@@ -79064,7 +79064,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1940 Wh, but only 1815 Wh is available \u2014 a shortfall of 125 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1940 Wh, but only 1815 Wh is available: a shortfall of 125 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2208,
           "critical_reduced": []
@@ -79923,7 +79923,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 921 Wh is available \u2014 a shortfall of 159 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 921 Wh is available: a shortfall of 159 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1564,
           "critical_reduced": [
@@ -80414,7 +80414,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 901 Wh is available \u2014 a shortfall of 179 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 901 Wh is available: a shortfall of 179 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2143,
           "critical_reduced": []
@@ -81241,7 +81241,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1320 Wh, but only 1295 Wh is available \u2014 a shortfall of 25 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1320 Wh, but only 1295 Wh is available: a shortfall of 25 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1600,
           "critical_reduced": [
@@ -81739,7 +81739,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running router, fan for their full requested hours needs 860 Wh, but only 811 Wh is available \u2014 a shortfall of 49 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running router, fan for their full requested hours needs 860 Wh, but only 811 Wh is available: a shortfall of 49 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1268,
           "critical_reduced": [
@@ -82552,7 +82552,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 972 Wh is available \u2014 a shortfall of 108 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 972 Wh is available: a shortfall of 108 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1864,
           "critical_reduced": [
@@ -83049,7 +83049,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fan for their full requested hours needs 550 Wh, but only 416 Wh is available \u2014 a shortfall of 134 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fan for their full requested hours needs 550 Wh, but only 416 Wh is available: a shortfall of 134 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1335,
           "critical_reduced": [
@@ -83233,7 +83233,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop for their full requested hours needs 1400 Wh, but only 1335 Wh is available \u2014 a shortfall of 65 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop for their full requested hours needs 1400 Wh, but only 1335 Wh is available: a shortfall of 65 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1712,
           "critical_reduced": [
@@ -84381,7 +84381,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 360 Wh, but only 173 Wh is available \u2014 a shortfall of 187 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 360 Wh, but only 173 Wh is available: a shortfall of 187 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1283,
           "critical_reduced": [
@@ -84565,7 +84565,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, fan for their full requested hours needs 1680 Wh, but only 1229 Wh is available \u2014 a shortfall of 451 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, fan for their full requested hours needs 1680 Wh, but only 1229 Wh is available: a shortfall of 451 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2029,
           "critical_reduced": [
@@ -85425,7 +85425,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 635 Wh is available \u2014 a shortfall of 265 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 635 Wh is available: a shortfall of 265 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1554,
           "critical_reduced": [
@@ -86573,7 +86573,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, laptop for their full requested hours needs 1315 Wh, but only 1205 Wh is available \u2014 a shortfall of 110 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, laptop for their full requested hours needs 1315 Wh, but only 1205 Wh is available: a shortfall of 110 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1717,
           "critical_reduced": [
@@ -87921,7 +87921,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 858 Wh is available \u2014 a shortfall of 222 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 858 Wh is available: a shortfall of 222 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1525,
           "critical_reduced": [
@@ -88732,7 +88732,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, phone, laptop, fan for their full requested hours needs 1285 Wh, but only 1282 Wh is available \u2014 a shortfall of 3 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, phone, laptop, fan for their full requested hours needs 1285 Wh, but only 1282 Wh is available: a shortfall of 3 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1321,
           "critical_reduced": []
@@ -89563,7 +89563,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 609 Wh is available \u2014 a shortfall of 291 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 900 Wh, but only 609 Wh is available: a shortfall of 291 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1507,
           "critical_reduced": []
@@ -90041,7 +90041,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 720 Wh, but only 558 Wh is available \u2014 a shortfall of 162 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 720 Wh, but only 558 Wh is available: a shortfall of 162 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1180,
           "critical_reduced": [
@@ -90881,7 +90881,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 211 Wh is available \u2014 a shortfall of 869 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 211 Wh is available: a shortfall of 869 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1719,
           "critical_reduced": [
@@ -92882,7 +92882,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 799 Wh is available \u2014 a shortfall of 281 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 799 Wh is available: a shortfall of 281 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1865,
           "critical_reduced": [
@@ -93377,7 +93377,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 306 Wh is available \u2014 a shortfall of 774 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 306 Wh is available: a shortfall of 774 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1555,
           "critical_reduced": []
@@ -93559,7 +93559,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 637 Wh is available \u2014 a shortfall of 443 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 637 Wh is available: a shortfall of 443 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1598,
           "critical_reduced": []
@@ -94407,7 +94407,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 720 Wh, but only 615 Wh is available \u2014 a shortfall of 105 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 720 Wh, but only 615 Wh is available: a shortfall of 105 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1432,
           "critical_reduced": [
@@ -95212,7 +95212,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 630 Wh, but only 175 Wh is available \u2014 a shortfall of 455 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 630 Wh, but only 175 Wh is available: a shortfall of 455 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 977,
           "critical_reduced": [
@@ -95669,7 +95669,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 480 Wh, but only 303 Wh is available \u2014 a shortfall of 177 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 480 Wh, but only 303 Wh is available: a shortfall of 177 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 748,
           "critical_reduced": []
@@ -96439,7 +96439,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, phone, laptop for their full requested hours needs 895 Wh, but only 880 Wh is available \u2014 a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, phone, laptop for their full requested hours needs 895 Wh, but only 880 Wh is available: a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 895,
           "critical_reduced": [
@@ -97586,7 +97586,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 831 Wh is available \u2014 a shortfall of 249 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 831 Wh is available: a shortfall of 249 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1728,
           "critical_reduced": [
@@ -98087,7 +98087,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, laptop, fan for their full requested hours needs 1155 Wh, but only 1036 Wh is available \u2014 a shortfall of 119 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, laptop, fan for their full requested hours needs 1155 Wh, but only 1036 Wh is available: a shortfall of 119 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1229,
           "critical_reduced": [
@@ -99581,7 +99581,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1320 Wh, but only 1158 Wh is available \u2014 a shortfall of 162 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1320 Wh, but only 1158 Wh is available: a shortfall of 162 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1815,
           "critical_reduced": [
@@ -100092,7 +100092,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 413 Wh is available \u2014 a shortfall of 667 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 413 Wh is available: a shortfall of 667 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1888,
           "critical_reduced": []
@@ -100274,7 +100274,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 656 Wh is available \u2014 a shortfall of 424 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 656 Wh is available: a shortfall of 424 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1730,
           "critical_reduced": []
@@ -100781,7 +100781,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 630 Wh, but only 604 Wh is available \u2014 a shortfall of 26 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 630 Wh, but only 604 Wh is available: a shortfall of 26 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1501,
           "critical_reduced": [
@@ -101994,7 +101994,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1008 Wh is available \u2014 a shortfall of 72 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1008 Wh is available: a shortfall of 72 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2305,
           "critical_reduced": [
@@ -102184,7 +102184,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1056 Wh is available \u2014 a shortfall of 24 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1056 Wh is available: a shortfall of 24 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1743,
           "critical_reduced": [
@@ -102685,7 +102685,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1520 Wh, but only 1460 Wh is available \u2014 a shortfall of 60 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1520 Wh, but only 1460 Wh is available: a shortfall of 60 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1853,
           "critical_reduced": [
@@ -102875,7 +102875,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 510 Wh is available \u2014 a shortfall of 570 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 510 Wh is available: a shortfall of 570 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1542,
           "critical_reduced": [
@@ -103723,7 +103723,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 810 Wh, but only 620 Wh is available \u2014 a shortfall of 190 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 810 Wh, but only 620 Wh is available: a shortfall of 190 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1763,
           "critical_reduced": [
@@ -104524,7 +104524,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 930 Wh, but only 915 Wh is available \u2014 a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 930 Wh, but only 915 Wh is available: a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1260,
           "critical_reduced": []
@@ -105341,7 +105341,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running laptop for their full requested hours needs 390 Wh, but only 371 Wh is available \u2014 a shortfall of 19 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running laptop for their full requested hours needs 390 Wh, but only 371 Wh is available: a shortfall of 19 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1055,
           "critical_reduced": [
@@ -105797,7 +105797,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 194 Wh is available \u2014 a shortfall of 886 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 194 Wh is available: a shortfall of 886 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1756,
           "critical_reduced": []
@@ -106344,7 +106344,7 @@
             "cardinality": 4,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, lamp, laptop for their full requested hours needs 1598 Wh, but only 1593 Wh is available \u2014 a shortfall of 5 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, lamp, laptop for their full requested hours needs 1598 Wh, but only 1593 Wh is available: a shortfall of 5 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1898,
           "critical_reduced": []
@@ -108014,7 +108014,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, fan for their full requested hours needs 1220 Wh, but only 1125 Wh is available \u2014 a shortfall of 95 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, fan for their full requested hours needs 1220 Wh, but only 1125 Wh is available: a shortfall of 95 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1310,
           "critical_reduced": [
@@ -109154,7 +109154,7 @@
             "cardinality": 2,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router for their full requested hours needs 1350 Wh, but only 1167 Wh is available \u2014 a shortfall of 183 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router for their full requested hours needs 1350 Wh, but only 1167 Wh is available: a shortfall of 183 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 2044,
           "critical_reduced": [
@@ -110021,7 +110021,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 106 Wh is available \u2014 a shortfall of 974 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 106 Wh is available: a shortfall of 974 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1778,
           "critical_reduced": []
@@ -111149,7 +111149,7 @@
             "cardinality": 1,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1065 Wh is available \u2014 a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge for their full requested hours needs 1080 Wh, but only 1065 Wh is available: a shortfall of 15 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1623,
           "critical_reduced": [
@@ -112336,7 +112336,7 @@
             "cardinality": 3,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, laptop for their full requested hours needs 1275 Wh, but only 1227 Wh is available \u2014 a shortfall of 48 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, laptop for their full requested hours needs 1275 Wh, but only 1227 Wh is available: a shortfall of 48 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1811,
           "critical_reduced": [
@@ -114372,7 +114372,7 @@
             "cardinality": 5,
             "scope": "constant upper-bound energy with fixed usable battery"
           },
-          "explanation": "Running fridge, router, phone, laptop, fan for their full requested hours needs 1705 Wh, but only 1694 Wh is available \u2014 a shortfall of 11 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "explanation": "Running fridge, router, phone, laptop, fan for their full requested hours needs 1705 Wh, but only 1694 Wh is available: a shortfall of 11 Wh. That is the smallest set of services that alone breaks the battery budget.",
           "independent_verification": null,
           "requested_wh": 1717,
           "critical_reduced": [

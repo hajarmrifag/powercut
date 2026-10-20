@@ -11,7 +11,7 @@ UI without duplicating that data. POST /plan takes the household's current
 edited state (per-appliance required_hours, battery usable_wh/max_w) and
 recomputes everything live: feasibility, a plain-English conflict
 explanation when infeasible, and up to two independently-verified repair
-alternatives. Nothing is cached — every response reflects an actual solve()
+alternatives. Nothing is cached: every response reflects an actual solve()
 call made at request time (nonce + instance id prove it is not a canned
 frontend value), and every alternative is re-checked with verifier.check
 before being returned.
@@ -99,7 +99,7 @@ def explain_infeasibility(problem, result):
         return (
             f"Running {', '.join(conflict['services'])} for their full requested "
             f"hours needs {conflict['required_wh']} Wh, but only "
-            f"{conflict['budget_wh']} Wh is available — a shortfall of "
+            f"{conflict['budget_wh']} Wh is available: a shortfall of "
             f"{shortfall} Wh. That is the smallest set of services that alone "
             f"breaks the battery budget."
         ), conflict

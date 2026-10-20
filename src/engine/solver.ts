@@ -1,4 +1,4 @@
-// Ported from engine/solver.py — keep behavior byte-for-byte equivalent.
+// Ported from engine/solver.py: keep behavior byte-for-byte equivalent.
 // The Python original remains the reference implementation; see
 // engine/differential/ for the cross-language test harness that enforces
 // this file never silently drifts from it.

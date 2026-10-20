@@ -1,4 +1,4 @@
-// Ported from engine/verifier.py — independent schedule checker. Deliberately
+// Ported from engine/verifier.py, an independent schedule checker. Deliberately
 // does not import solver.ts, matching the Python original's isolation.
 import type {Problem, ScheduleRow, Verification} from '../types';
 
@@ -8,7 +8,7 @@ export function check(problem: Problem, schedule: string[][] | undefined, bound:
   const errors: string[] = [];
   if (!schedule || schedule.length !== problem.hours) {
     // Matches engine/verifier.py exactly: only `valid`/`errors` are present
-    // on this early-return path (dead in normal operation — solve() only
+    // on this early-return path (dead in normal operation: solve() only
     // ever returns a schedule whose length equals problem.hours).
     return {valid: false, errors: ['wrong horizon']} as Verification;
   }

@@ -20,7 +20,7 @@ will and won't offer: not just which "essential" badge gets drawn.
   `critical_ids`, `critical_reduced`, and each alternative's summary text
   (no more hardcoded "fridge, router" in the English explanation).
 - **UI** (`src/App.tsx`): a toggle button on the appliance edit screen
-  ("Mark as essential" / "✓ Essential — unmark"), routed through the same
+  ("Mark as essential" / "Unmark as essential"), routed through the same
   `recompute()` / in-flight-guard path as every other edit, so the
   "Saving…" indicator and press-debouncing already proven in Phase 3
   cover it too. The essential badges and explanatory text on both the
@@ -80,8 +80,11 @@ Full workflow, screenshots in `evidence/screenshots/phase-b/`:
 2. `02-lamp-not-essential.png`: lamp's edit screen: "Not marked
    essential" copy, "Mark as essential" button.
 3. `03-lamp-marked-essential.png`: pressed the toggle: live-recomputed,
-   title now shows "· essential service", button now "✓ Essential —
-   unmark".
+   title now shows "· essential service", button now reads essential and
+   offers to unmark it. (This screenshot predates a later wording-only
+   pass that changed the button's punctuation; see `README.md`'s
+   development process section. The screenshot itself was not
+   recaptured.)
 4. `04-overview-three-essentials.png`: back on the overview: fridge,
    router, **and lamp** now all show the essential badge.
 5. `05-fridge-unmarked.png`: fridge's edit screen, toggled off: "Not

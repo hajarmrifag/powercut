@@ -286,7 +286,7 @@ describe('App', () => {
     await waitFor(() => expect(api.fetchPlan).toHaveBeenCalledTimes(2));
     const sentCriticalIds = (api.fetchPlan as jest.Mock).mock.calls[1][3] as string[];
     expect(new Set(sentCriticalIds)).toEqual(new Set(['fridge', 'router', 'lamp']));
-    expect(screen.getByText('✓ Essential — unmark')).toBeTruthy();
+    expect(screen.getByText('Unmark as essential')).toBeTruthy();
 
     fireEvent.press(screen.getByTestId('btn-toggle-essential'));
     await waitFor(() => expect(api.fetchPlan).toHaveBeenCalledTimes(3));

@@ -437,7 +437,7 @@ export const App = () => {
               focus === 'toggle-essential' && styles.cardFocused,
             ]}>
             <Text style={styles.stepperButtonText}>
-              {isCritical ? '✓ Essential — unmark' : 'Mark as essential'}
+              {isCritical ? 'Unmark as essential' : 'Mark as essential'}
             </Text>
           </Pressable>
         </TVFocusGuideView>
