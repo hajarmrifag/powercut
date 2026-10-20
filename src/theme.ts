@@ -1,42 +1,62 @@
-// A small, consistent design system so PowerCut reads as one product rather
-// than a developer dashboard: a dark "outage at night" background with a
-// warm candlelight-amber accent, carried through every screen.
+// PowerCut's design system: a single source of truth for color, type,
+// spacing, and radius so every screen reads as one considered product
+// rather than a set of ad hoc styles. Dark, cinematic "outage at night"
+// background; a restrained amber accent for attention and warmth; green
+// and coral reserved strictly for feasible/infeasible state, never used
+// decoratively. Values are tuned for the Vega Virtual Device's effective
+// ~2x dp scale (see docs/VEGA_SDK_FRICTION_LOG.md), not raw 1920x1080 px.
 export const colors = {
-  bg: '#0B0F1C',
+  bg: '#07090F',
+  bgHero: '#0E1324',
   bgPanel: '#131A2E',
-  bgCard: '#1C2541',
-  bgCardFocused: '#2C3A63',
-  border: '#28325420',
+  bgCard: '#161D34',
+  bgCardFocused: '#283257',
+  bgCardCritical: '#1A2440',
+  border: '#232C4A',
   borderFocused: '#FFB347',
+  divider: '#1E2640',
   accent: '#FFB347',
-  accentDim: '#C98A33',
-  text: '#F3F5FA',
+  accentMuted: '#B98A4E',
+  accentSoft: '#3A311F',
+  text: '#F5F7FC',
   textDim: '#A8B1CC',
-  textFaint: '#6D7797',
+  textFaint: '#626C8C',
   feasible: '#4ADE80',
-  feasibleDim: '#1E3A2A',
+  feasibleDim: '#17301F',
   infeasible: '#FB7185',
-  infeasibleDim: '#3A1E27',
-  energyTrack: '#28325480',
+  infeasibleDim: '#331821',
+  energyTrack: '#1C2440',
 };
 
-export const spacing = {xs: 6, sm: 12, md: 16, lg: 26, xl: 40};
+export const spacing = {xs: 6, sm: 12, md: 18, lg: 28, xl: 44, xxl: 64};
+
+export const radius = {sm: 10, md: 16, lg: 22, pill: 999};
 
 export const type = {
-  title: 38,
+  display: 64,
+  title: 42,
   h1: 28,
-  h2: 23,
-  body: 20,
+  h2: 22,
+  body: 19,
+  label: 14,
   small: 15,
+  caption: 13,
 };
 
-export const applianceIcon: Record<string, string> = {
-  fridge: '🧊',
-  router: '📶',
-  lamp: '💡',
-  phone: '📱',
-  laptop: '💻',
-  fan: '🌀',
+export const motion = {
+  focusScale: 1.035,
+  duration: 120,
+};
+
+// Appliance ids double as icon names (Icon component in icons.tsx); kept
+// as an explicit export so call sites don't have to assume the mapping.
+export const applianceIconName: Record<string, string> = {
+  fridge: 'fridge',
+  router: 'router',
+  lamp: 'lamp',
+  phone: 'phone',
+  laptop: 'laptop',
+  fan: 'fan',
 };
 
 export const applianceLabel: Record<string, string> = {
