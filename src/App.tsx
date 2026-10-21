@@ -26,7 +26,12 @@ const FLOW_GAP = 6;
 const FLOW_TOTAL_H = APPLIANCE_IDS.length * FLOW_ROW_H + (APPLIANCE_IDS.length - 1) * FLOW_GAP;
 const FLOW_RIBBON_W = 200;
 const FLOW_CAPSULE_W = 10;
-const FLOW_SLICES = 36;
+// High slice density is what actually buys smoothness here (stepping
+// width shrinks linearly with slice width), and it's cheap: this screen
+// is static between data changes, nothing here animates continuously, so
+// a few hundred plain absolutely-positioned Views cost nothing noticeable
+// to lay out once. Verified on-device below, not assumed.
+const FLOW_SLICES = 140;
 
 type FlowRow = {id: string; wh: number; isCritical: boolean};
 type FlowBand = {top: number; bottom: number};
@@ -57,13 +62,16 @@ function smoothstep(t: number) {
 function buildRibbonSlices(band: {src: FlowBand; dest: FlowBand}) {
   const {src, dest} = band;
   const sliceW = FLOW_RIBBON_W / FLOW_SLICES;
+  // A small width fudge closes antialiasing seams between slices without
+  // meaningfully blurring the curve's shape at this slice density.
+  const overlap = Math.min(0.6, sliceW * 0.25);
   const out: Array<{left: number; top: number; height: number; width: number}> = [];
   for (let i = 0; i < FLOW_SLICES; i++) {
     const tMid = (i + 0.5) / FLOW_SLICES;
     const e = smoothstep(tMid);
     const top = src.top + (dest.top - src.top) * e;
     const bottom = src.bottom + (dest.bottom - src.bottom) * e;
-    out.push({left: i * sliceW, top, height: Math.max(1, bottom - top), width: sliceW + 1});
+    out.push({left: i * sliceW, top, height: Math.max(1, bottom - top), width: sliceW + overlap});
   }
   return out;
 }
