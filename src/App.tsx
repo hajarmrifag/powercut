@@ -3,7 +3,7 @@ import {Animated, Pressable, ScrollView, StyleSheet, Text, View} from 'react-nat
 import {TVFocusGuideView, useKeplerBackHandler} from '@amazon-devices/react-native-kepler';
 import {fetchDefaults, fetchPlan} from './api';
 import {Icon, type IconName} from './icons';
-import {applianceLabel, colors, motion, radius, spacing, type} from './theme';
+import {applianceLabel, colors, flow, motion, radius, spacing, type} from './theme';
 import type {Alternative, ApplianceRequirement, Defaults, Plan} from './types';
 
 type Page = 'overview' | 'editAppliance' | 'editBattery' | 'alternatives';
@@ -11,6 +11,68 @@ type Page = 'overview' | 'editAppliance' | 'editBattery' | 'alternatives';
 const OUTAGE_HOURS = 12;
 const APPLIANCE_IDS = ['fridge', 'router', 'lamp', 'phone', 'laptop', 'fan'];
 const DEFAULT_CRITICAL_IDS = new Set(['fridge', 'router']);
+
+// ---- Overview energy-flow geometry -------------------------------------
+// The overview's centerpiece approximates a Sankey ribbon from the
+// battery budget into each appliance's share of tonight's demand. There is
+// no SVG or curve-drawing dependency in this project (deliberately: no new
+// native module to verify on Vega under a hackathon deadline), so each
+// ribbon is drawn as a strip of thin rectangles whose top/bottom edges
+// follow a smoothstep interpolation between the source and destination
+// bands. That produces the same S-curve shape a bezier ribbon would, built
+// entirely from plain Views.
+const FLOW_ROW_H = 26;
+const FLOW_GAP = 6;
+const FLOW_TOTAL_H = APPLIANCE_IDS.length * FLOW_ROW_H + (APPLIANCE_IDS.length - 1) * FLOW_GAP;
+const FLOW_RIBBON_W = 200;
+const FLOW_CAPSULE_W = 10;
+const FLOW_SLICES = 36;
+
+type FlowRow = {id: string; wh: number; isCritical: boolean};
+type FlowBand = {top: number; bottom: number};
+
+function computeFlowBands(rows: FlowRow[], totalWh: number) {
+  const safeTotal = totalWh > 0 ? totalWh : 1;
+  let cum = 0;
+  const src: FlowBand[] = rows.map(r => {
+    const top = (cum / safeTotal) * FLOW_TOTAL_H;
+    cum += r.wh;
+    const bottom = (cum / safeTotal) * FLOW_TOTAL_H;
+    return {top, bottom};
+  });
+  let y = 0;
+  const dest: FlowBand[] = rows.map(() => {
+    const band = {top: y, bottom: y + FLOW_ROW_H};
+    y += FLOW_ROW_H + FLOW_GAP;
+    return band;
+  });
+  return {src, dest};
+}
+
+function smoothstep(t: number) {
+  const c = clamp(t, 0, 1);
+  return c * c * (3 - 2 * c);
+}
+
+function buildRibbonSlices(band: {src: FlowBand; dest: FlowBand}) {
+  const {src, dest} = band;
+  const sliceW = FLOW_RIBBON_W / FLOW_SLICES;
+  const out: Array<{left: number; top: number; height: number; width: number}> = [];
+  for (let i = 0; i < FLOW_SLICES; i++) {
+    const tMid = (i + 0.5) / FLOW_SLICES;
+    const e = smoothstep(tMid);
+    const top = src.top + (dest.top - src.top) * e;
+    const bottom = src.bottom + (dest.bottom - src.bottom) * e;
+    out.push({left: i * sliceW, top, height: Math.max(1, bottom - top), width: sliceW + 1});
+  }
+  return out;
+}
+
+// No Intl/toLocaleString dependency on-device: a plain regex grouping is
+// guaranteed to work on Hermes without relying on bundled ICU data.
+function formatWh(n: number): string {
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 // "Essential" here is a household preference the optimizer respects --
 // it is not a safety certification. Fridge and router are the two
@@ -281,193 +343,240 @@ export const App = () => {
   const feasible = plan?.requested.result.feasible ?? null;
   const requestedWh = plan?.requested.requested_wh ?? 0;
   const budgetWh = plan?.budget_wh ?? usableWh;
-  const energyRatio = budgetWh > 0 ? requestedWh / budgetWh : 0;
   const deltaWh = requestedWh - budgetWh;
 
   // ---------------- Overview ----------------
+  // Energy-flow redesign: a Sankey-style ribbon from the battery budget
+  // into each appliance's real share of tonight's demand (high_w *
+  // required_hours per appliance, the same quantity the engine itself
+  // sums to produce requested_wh -- see engine/solver.py's solve()).
+  // Row order is the fixed APPLIANCE_IDS order, not sorted by size: a
+  // household can mark any appliance essential at any time, and reordering
+  // rows by their current Wh share would move the row under D-pad focus
+  // out from under the remote the moment its data changed.
   function renderOverview() {
+    const flowRows: FlowRow[] = APPLIANCE_IDS.map(id => {
+      const info = applianceInfo?.[id];
+      const wh = info ? info.high_w * hoursFor(id) : 0;
+      return {id, wh, isCritical: criticalIds.has(id)};
+    });
+    const {src, dest} = computeFlowBands(flowRows, requestedWh);
+    const capFrac = requestedWh > 0 ? budgetWh / requestedWh : 1;
+    const capY = clamp(capFrac, 0, 1) * FLOW_TOTAL_H;
+    const showOverage = deltaWh > 0 && plan !== null;
+
     return (
-      <View style={styles.screen} testID="screen-overview">
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.wordmark}>PowerCut</Text>
-            <Text style={styles.subtitle}>{plan?.title ?? "Tonight's outage plan"} · {OUTAGE_HOURS}h window</Text>
-          </View>
-          {feasible !== null && (
-            <View
-              style={[
-                styles.statusBadge,
-                {backgroundColor: feasible ? colors.feasibleDim : colors.infeasibleDim},
-              ]}
-              testID="status-badge">
-              <View
-                style={[styles.statusDot, {backgroundColor: feasible ? colors.feasible : colors.infeasible}]}
-              />
-              <Text style={[styles.statusText, {color: feasible ? colors.feasible : colors.infeasible}]}>
-                {feasible ? 'FEASIBLE' : 'INFEASIBLE'}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.heroPanel}>
-          <View style={styles.heroMain}>
-            <Text style={styles.heroLabel}>Energy needed tonight</Text>
-            <View style={styles.heroNumberRow}>
-              <Text
-                style={[
-                  styles.heroNumber,
-                  {color: energyRatio > 1 ? colors.infeasible : colors.text},
-                ]}>
-                {requestedWh}
-              </Text>
-              <Text style={styles.heroNumberUnit}> of {budgetWh} Wh available</Text>
-            </View>
-            <View style={styles.energyTrack}>
-              <View
-                style={[
-                  styles.energyFill,
-                  {
-                    width: `${clamp(energyRatio * 100, 2, 100)}%`,
-                    backgroundColor: energyRatio > 1 ? colors.infeasible : colors.feasible,
-                  },
-                ]}
-              />
-              <View style={styles.energyTrackMarker} />
-            </View>
-            {renderStatusLine()}
-          </View>
-          {plan && (
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatLabel}>{deltaWh > 0 ? 'Shortfall' : 'Remaining'}</Text>
-              <Text
-                style={[
-                  styles.heroStatValue,
-                  {color: deltaWh > 0 ? colors.infeasible : colors.feasible},
-                ]}>
-                {Math.abs(deltaWh)} <Text style={styles.heroStatUnit}>Wh</Text>
-              </Text>
-              <Text style={styles.heroStatCaption}>
-                {deltaWh > 0 ? 'over budget' : 'left in the battery'}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={styles.sectionLabel}>Appliances · {OUTAGE_HOURS}h outage</Text>
-        <TVFocusGuideView style={styles.applianceRow} autoFocus>
-          {APPLIANCE_IDS.map((id, i) => {
-            const info = applianceInfo?.[id];
-            const isCritical = criticalIds.has(id);
-            const wasReduced = plan?.requested.critical_reduced.includes(id);
-            const windowLen = info ? new Set(info.allowed_hours).size : OUTAGE_HOURS;
-            const hoursRatio = windowLen > 0 ? clamp(hoursFor(id) / windowLen, 0, 1) : 0;
-            return (
-              <Pressable
-                key={id}
-                testID={`tile-appliance-${id}`}
-                hasTVPreferredFocus={i === 0}
-                accessibilityLabel={
-                  `${applianceLabel[id]}, ${hoursFor(id)} hours` +
-                  (isCritical ? ', essential service' : '') +
-                  (wasReduced ? ', reduced below full' : '')
-                }
-                onFocus={() => setFocus(id)}
-                onPress={() => {
-                  setEditingId(id);
-                  setPage('editAppliance');
-                }}
-                style={styles.applianceSlot}>
-                <FocusTile
-                  focused={focus === id}
+      <View style={flowStyles.screen} testID="screen-overview">
+        <View style={flowStyles.topbar}>
+          <Text style={flowStyles.word}>PowerCut</Text>
+          <View style={flowStyles.topright}>
+            {feasible !== null && (
+              <View style={flowStyles.statusRow} testID="status-badge">
+                <View
                   style={[
-                    styles.applianceCard,
-                    isCritical && styles.applianceCardCritical,
-                    focus === id && styles.cardFocused,
-                  ]}>
-                  {isCritical ? (
-                    <View
-                      style={[
-                        styles.essentialPill,
-                        {backgroundColor: wasReduced ? colors.infeasibleDim : colors.accentSoft},
-                      ]}>
-                      <Text
-                        testID={`badge-essential-${id}`}
-                        style={[
-                          styles.essentialPillText,
-                          {color: wasReduced ? colors.infeasible : colors.accent},
-                        ]}>
-                        {wasReduced ? '⚠ essential' : '✓ essential'}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.essentialPillSpacer} />
-                  )}
-                  <Icon name={id as IconName} size={24} color={colors.text} />
-                  <Text style={styles.applianceName}>{applianceLabel[id]}</Text>
-                  <Text style={styles.applianceHours}>{hoursFor(id)}h</Text>
-                  <View style={styles.miniTrack}>
-                    <View style={[styles.miniFill, {width: `${hoursRatio * 100}%`}]} />
-                  </View>
-                  {info && <Text style={styles.applianceWatts}>{info.low_w}-{info.high_w} W</Text>}
-                </FocusTile>
-              </Pressable>
-            );
-          })}
-        </TVFocusGuideView>
-
-        <TVFocusGuideView style={styles.actionRow}>
-          <Pressable
-            testID="tile-battery"
-            accessibilityLabel={`Battery, ${usableWh} watt hours, ${maxW} watt limit`}
-            onFocus={() => setFocus('battery')}
-            onPress={() => setPage('editBattery')}
-            style={styles.actionSlot}>
-            <FocusTile focused={focus === 'battery'} style={[styles.actionCard, focus === 'battery' && styles.cardFocused]}>
-              <Icon name="battery" size={30} color={colors.text} />
-              <View style={styles.actionTextGroup}>
-                <Text style={styles.actionTitle} numberOfLines={1}>Battery</Text>
-                <Text style={styles.actionValue} numberOfLines={1}>{usableWh} Wh · {maxW} W limit</Text>
+                    flowStyles.statusDot,
+                    {backgroundColor: feasible ? colors.feasible : flow.coral},
+                  ]}
+                />
+                <Text style={[flowStyles.statusWord, {color: feasible ? colors.feasible : flow.coral}]}>
+                  {feasible ? 'FEASIBLE' : 'INFEASIBLE'}
+                </Text>
               </View>
-            </FocusTile>
-          </Pressable>
-          {feasible === false && (
+            )}
+            <View style={flowStyles.legend}>
+              <View style={flowStyles.legendItem}>
+                <View style={[flowStyles.legendDot, {backgroundColor: flow.accent}]} />
+                <Text style={flowStyles.legendText}>Essential</Text>
+              </View>
+              <View style={flowStyles.legendItem}>
+                <View style={[flowStyles.legendDot, {backgroundColor: flow.flexible}]} />
+                <Text style={flowStyles.legendText}>Flexible</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={flowStyles.hero}>
+          <Text style={flowStyles.heroEyebrow}>Tonight&#39;s {OUTAGE_HOURS}-hour outage plan</Text>
+          <Text style={flowStyles.heroNum}>{formatWh(requestedWh)} Wh</Text>
+          {plan && (
+            <Text style={flowStyles.heroSub}>
+              {deltaWh > 0
+                ? `That's `
+                : `That leaves `}
+              <Text style={flowStyles.heroSubStrong}>{formatWh(Math.abs(deltaWh))} Wh</Text>
+              {deltaWh > 0
+                ? ` more than the ${formatWh(budgetWh)} Wh the battery can give tonight.`
+                : ` of the ${formatWh(budgetWh)} Wh battery unused tonight.`}
+            </Text>
+          )}
+          {renderStatusLine()}
+        </View>
+
+        <View style={flowStyles.flowZone}>
+          <View style={flowStyles.capsule}>
+            {flowRows.map((r, i) => (
+              <View
+                key={r.id}
+                style={{
+                  height: Math.max(0, src[i].bottom - src[i].top),
+                  backgroundColor: r.isCritical ? flow.accent : flow.flexible,
+                  opacity: r.isCritical ? 1 : 0.55,
+                }}
+              />
+            ))}
+          </View>
+
+          {showOverage && (
+            <>
+              <View style={[flowStyles.capacityTick, {top: capY - 1}]} />
+              <View style={[flowStyles.capacityLabelWrap, {top: clamp(capY - 30, 0, FLOW_TOTAL_H - 30)}]}>
+                <Text style={flowStyles.capacityLabel}>{formatWh(budgetWh)} Wh capacity</Text>
+                <Text style={flowStyles.capacityOver}>{formatWh(deltaWh)} Wh over</Text>
+              </View>
+            </>
+          )}
+
+          <View style={flowStyles.ribbons} pointerEvents="none">
+            {flowRows.map((r, i) => (
+              <View key={r.id} style={StyleSheet.absoluteFill}>
+                {buildRibbonSlices({src: src[i], dest: dest[i]}).map((s, j) => (
+                  <View
+                    key={j}
+                    style={{
+                      position: 'absolute',
+                      left: s.left,
+                      top: s.top,
+                      width: s.width,
+                      height: s.height,
+                      backgroundColor: r.isCritical ? flow.accent : flow.flexible,
+                      opacity: r.isCritical ? 0.42 : 0.3,
+                    }}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+
+          <TVFocusGuideView style={flowStyles.rows} autoFocus>
+            {flowRows.map((r, i) => {
+              const id = r.id;
+              const wasReduced = plan?.requested.critical_reduced.includes(id);
+              const showTag = r.isCritical && SAFETY_SENSITIVE_IDS.has(id);
+              return (
+                <Pressable
+                  key={id}
+                  testID={`tile-appliance-${id}`}
+                  hasTVPreferredFocus={i === 0}
+                  accessibilityLabel={
+                    `${applianceLabel[id]}, ${hoursFor(id)} hours` +
+                    (r.isCritical ? ', essential service' : '') +
+                    (wasReduced ? ', reduced below full' : '')
+                  }
+                  onFocus={() => setFocus(id)}
+                  onPress={() => {
+                    setEditingId(id);
+                    setPage('editAppliance');
+                  }}
+                  style={[flowStyles.rowSlot, {top: dest[i].top, height: FLOW_ROW_H}]}>
+                  <FocusTile
+                    focused={focus === id}
+                    style={[flowStyles.row, focus === id && flowStyles.rowFocused]}>
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        flowStyles.rowTint,
+                        {backgroundColor: r.isCritical ? flow.accent : flow.flexible, opacity: r.isCritical ? 0.1 : 0.06},
+                      ]}
+                    />
+                    <View style={flowStyles.rowIconSlot}>
+                      <Icon name={id as IconName} size={11} color={flow.ink} />
+                    </View>
+                    <View style={flowStyles.rowText}>
+                      <View style={flowStyles.rowNameLine}>
+                        <Text style={flowStyles.rowName}>{applianceLabel[id]}</Text>
+                        {r.isCritical && (
+                          <Text
+                            testID={`badge-essential-${id}`}
+                            style={[
+                              flowStyles.rowBadge,
+                              {color: wasReduced ? flow.coral : flow.accent},
+                            ]}>
+                            {wasReduced ? '⚠ essential' : '✓ essential'}
+                          </Text>
+                        )}
+                      </View>
+                      {showTag && (
+                        <Text style={flowStyles.rowTag} numberOfLines={1}>
+                          {id === 'fridge'
+                            ? 'Runtime prioritized, not a safety guarantee'
+                            : 'Keeps connectivity up'}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={flowStyles.rowStats}>
+                      <Text style={flowStyles.rowHrs}>{hoursFor(id)}h</Text>
+                      <Text style={flowStyles.rowWh}>{formatWh(r.wh)} Wh</Text>
+                    </View>
+                  </FocusTile>
+                </Pressable>
+              );
+            })}
+          </TVFocusGuideView>
+        </View>
+
+        <View style={flowStyles.shelf}>
+          {feasible === false ? (
             <Pressable
               testID="tile-alternatives"
               accessibilityLabel="View conflict and alternatives"
               onFocus={() => setFocus('alternatives')}
-              onPress={() => setPage('alternatives')}
-              style={styles.actionSlot}>
-              <FocusTile
-                focused={focus === 'alternatives'}
-                style={[styles.actionCard, styles.actionCardAlert, focus === 'alternatives' && styles.cardFocused]}>
-                <Icon name="warning" size={28} color={colors.infeasible} />
-                <View style={styles.actionTextGroup}>
-                  <Text style={styles.actionTitle} numberOfLines={1}>Why this doesn't fit</Text>
-                  <Text style={[styles.actionValue, {color: colors.infeasible}]} numberOfLines={1}>
-                    {plan?.alternatives.length ?? 0} verified alternative
-                    {plan?.alternatives.length === 1 ? '' : 's'}
+              onPress={() => setPage('alternatives')}>
+              <FocusTile focused={focus === 'alternatives'} style={flowStyles.ctaPrimary}>
+                <Icon name="warning" size={13} color={flow.accentInk} />
+                <View style={flowStyles.ctaText}>
+                  <Text style={flowStyles.ctaTitle}>Why this doesn&#39;t fit</Text>
+                  <Text style={flowStyles.ctaSub} numberOfLines={1}>
+                    {plan?.alternatives.length ?? 0} verified way
+                    {plan?.alternatives.length === 1 ? '' : 's'} to fix it tonight
                   </Text>
                 </View>
               </FocusTile>
             </Pressable>
+          ) : (
+            null
           )}
-          <Pressable
-            testID="tile-reset"
-            accessibilityLabel="Reset to default plan"
-            onFocus={() => setFocus('reset')}
-            onPress={guard(resetToDefault)}
-            style={styles.actionSlot}>
-            <FocusTile focused={focus === 'reset'} style={[styles.actionCard, focus === 'reset' && styles.cardFocused]}>
-              <Icon name="reset" size={26} color={colors.text} />
-              <View style={styles.actionTextGroup}>
-                <Text style={styles.actionTitle} numberOfLines={1}>Reset to default</Text>
-              </View>
-            </FocusTile>
-          </Pressable>
-        </TVFocusGuideView>
+          <TVFocusGuideView style={flowStyles.secondaryRow}>
+            <Pressable
+              testID="tile-battery"
+              accessibilityLabel={`Battery, ${usableWh} watt hours, ${maxW} watt limit`}
+              onFocus={() => setFocus('battery')}
+              onPress={() => setPage('editBattery')}>
+              <FocusTile
+                focused={focus === 'battery'}
+                style={[flowStyles.secondary, focus === 'battery' && flowStyles.secondaryFocused]}>
+                <Icon name="battery" size={15} color={flow.inkDim} />
+                <Text style={flowStyles.secondaryText} numberOfLines={1}>
+                  Battery  <Text style={flowStyles.secondaryFaint}>{usableWh} Wh, {maxW} W limit</Text>
+                </Text>
+              </FocusTile>
+            </Pressable>
+            <Pressable
+              testID="tile-reset"
+              accessibilityLabel="Reset to default plan"
+              onFocus={() => setFocus('reset')}
+              onPress={guard(resetToDefault)}>
+              <FocusTile
+                focused={focus === 'reset'}
+                style={[flowStyles.secondary, focus === 'reset' && flowStyles.secondaryFocused]}>
+                <Icon name="reset" size={15} color={flow.inkDim} />
+                <Text style={flowStyles.secondaryText} numberOfLines={1}>Reset to default</Text>
+              </FocusTile>
+            </Pressable>
+          </TVFocusGuideView>
+        </View>
 
-        <Text style={styles.footer}>{plan?.limits}</Text>
+        <Text style={flowStyles.footer}>{plan?.limits}</Text>
       </View>
     );
   }
@@ -1025,4 +1134,116 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     fontWeight: '600',
   },
+});
+
+// Styles for the overview's energy-flow redesign only -- kept separate
+// from `styles` above for the same reason `flow` is kept separate from
+// `colors` in theme.ts (see the comment there).
+const flowStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: flow.bg,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  topbar: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
+  word: {fontSize: type.title, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
+  topright: {alignItems: 'flex-end'},
+  statusRow: {flexDirection: 'row', alignItems: 'center'},
+  statusDot: {width: 8, height: 8, borderRadius: 4, marginRight: spacing.xs},
+  statusWord: {fontSize: type.h2, fontWeight: '800', letterSpacing: 0.4},
+  legend: {flexDirection: 'row', marginTop: spacing.xs},
+  legendItem: {flexDirection: 'row', alignItems: 'center', marginLeft: spacing.md},
+  legendDot: {width: 6, height: 6, borderRadius: 3, marginRight: 6},
+  legendText: {fontSize: type.caption, color: flow.inkFaint},
+
+  hero: {marginTop: spacing.sm, maxWidth: 560},
+  heroEyebrow: {fontSize: type.small, color: flow.inkFaint},
+  heroNum: {fontSize: 52, fontWeight: '800', color: flow.ink, marginTop: 2, letterSpacing: -0.5},
+  heroSub: {fontSize: type.small, color: flow.inkDim, marginTop: 4, lineHeight: 19},
+  heroSubStrong: {color: flow.ink, fontWeight: '700'},
+
+  flowZone: {position: 'relative', marginTop: spacing.sm, height: FLOW_TOTAL_H},
+  capsule: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: FLOW_CAPSULE_W,
+    height: FLOW_TOTAL_H,
+    borderRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  capacityTick: {position: 'absolute', left: FLOW_CAPSULE_W - 3, width: FLOW_CAPSULE_W + 10, height: 2, backgroundColor: flow.ink},
+  capacityLabelWrap: {position: 'absolute', left: FLOW_CAPSULE_W + 10, width: 150},
+  capacityLabel: {fontSize: 10.5, color: flow.inkDim, backgroundColor: flow.bg},
+  capacityOver: {fontSize: 10, color: flow.coral, backgroundColor: flow.bg, marginTop: 1},
+
+  ribbons: {position: 'absolute', left: FLOW_CAPSULE_W + 24, top: 0, width: FLOW_RIBBON_W, height: FLOW_TOTAL_H},
+
+  rows: {position: 'absolute', left: FLOW_CAPSULE_W + 24 + FLOW_RIBBON_W, right: 0, top: 0, height: FLOW_TOTAL_H},
+  rowSlot: {position: 'absolute', left: 0, right: 0},
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    backgroundColor: flow.surface,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: flow.line,
+    paddingHorizontal: spacing.xs,
+  },
+  rowFocused: {borderColor: flow.accent},
+  rowTint: {position: 'absolute', left: 0, top: 0, bottom: 0, right: '55%'},
+  rowIconSlot: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    backgroundColor: flow.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  rowText: {flex: 1, minWidth: 0},
+  rowNameLine: {flexDirection: 'row', alignItems: 'center'},
+  rowName: {fontSize: 12.5, fontWeight: '700', color: flow.ink},
+  rowBadge: {fontSize: 8.5, fontWeight: '800', marginLeft: 5},
+  rowTag: {fontSize: 9, color: flow.inkDim, marginTop: 0},
+  rowStats: {alignItems: 'flex-end', marginLeft: 'auto', paddingLeft: spacing.xs},
+  rowHrs: {fontSize: 12.5, fontWeight: '700', color: flow.ink},
+  rowWh: {fontSize: 8.5, color: flow.inkFaint, marginTop: 0},
+
+  shelf: {marginTop: spacing.xs},
+  ctaPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: flow.accent,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  ctaText: {marginLeft: spacing.xs, flex: 1},
+  ctaTitle: {fontSize: type.small, fontWeight: '800', color: flow.accentInk},
+  ctaSub: {fontSize: 11, color: flow.accentInk, opacity: 0.72, marginTop: 1},
+
+  secondaryRow: {flexDirection: 'row', marginTop: spacing.xs},
+  secondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: spacing.lg,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  secondaryFocused: {borderColor: flow.accent, backgroundColor: flow.surface},
+  secondaryText: {fontSize: type.small, color: flow.inkDim, marginLeft: spacing.xs, fontWeight: '600'},
+  secondaryFaint: {color: flow.inkFaint, fontWeight: '400', fontSize: type.caption},
+
+  footer: {fontSize: type.caption, color: flow.inkFaint, marginTop: spacing.xs},
 });

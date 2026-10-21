@@ -48,6 +48,26 @@ export const motion = {
   duration: 120,
 };
 
+// A second, self-contained palette for the overview's energy-flow redesign
+// only (see docs/DEMO_VIDEO_STORYBOARD.md-era design review history). Kept
+// separate from `colors` above on purpose: the appliance-edit, battery-edit
+// and alternatives screens still read `colors` and are intentionally
+// untouched by this pass, so changing `colors` itself would silently
+// reskin screens nobody has approved a redesign for yet.
+export const flow = {
+  bg: '#0B0C0E',
+  surface: '#16181C',
+  line: 'rgba(255,255,255,0.08)',
+  ink: '#F3F4F6',
+  inkDim: '#9BA1AC',
+  inkFaint: '#5B6169',
+  accent: '#FF8A3D',
+  accentInk: '#1A0F04',
+  coral: '#FB7185',
+  coralSoft: '#2B171B',
+  flexible: '#73747C',
+};
+
 // Appliance ids double as icon names (Icon component in icons.tsx); kept
 // as an explicit export so call sites don't have to assume the mapping.
 export const applianceIconName: Record<string, string> = {
