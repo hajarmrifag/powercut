@@ -714,32 +714,48 @@ export const App = () => {
   }
 
   // ---------------- Battery edit ----------------
+  // Same near-black / single-accent Sankey identity as the overview,
+  // alternatives, and appliance-edit screens -- flowStyles only, reusing
+  // the same edit* keys the appliance-edit screen already established
+  // rather than adding new ones. The two progress bars are driven by this
+  // screen's own real, code-enforced editable range (setBattery's clamp
+  // bounds: 100-10000 Wh, 50-2000 W -- see setBattery above), not an
+  // invented scale.
   function renderBatteryEdit() {
+    const whRatio = clamp((usableWh - 100) / (10000 - 100), 0, 1);
+    const wRatio = clamp((maxW - 50) / (2000 - 50), 0, 1);
     return (
-      <View style={styles.screen} testID="screen-edit-battery">
-        <View style={styles.editHeaderRow}>
-          <View style={styles.editHeaderIcon}>
-            <Icon name="battery" size={30} color={colors.text} />
+      <View style={flowStyles.screen} testID="screen-edit-battery">
+        <View style={flowStyles.editHeaderRow}>
+          <View style={flowStyles.editIconBox}>
+            <Icon name="battery" size={32} color={flow.ink} />
           </View>
-          <View style={styles.editHeaderText}>
-            <Text style={styles.title}>Battery</Text>
-            <Text style={styles.subtitle}>Usable capacity and output limit for this outage</Text>
+          <View style={flowStyles.editHeaderText}>
+            <Text style={flowStyles.editTitle}>Battery</Text>
+            <Text style={flowStyles.editSubtitle}>Usable capacity and output limit for this outage</Text>
           </View>
         </View>
         {renderStatusLine()}
 
-        <Text style={styles.sectionLabel}>Usable capacity</Text>
-        <Text style={styles.bigValue} testID="battery-wh-value">{usableWh} Wh</Text>
-        <TVFocusGuideView style={styles.stepperRow} autoFocus>
+        <View style={flowStyles.battHeroWrap}>
+          <Text style={flowStyles.editHeroEyebrow}>Usable capacity</Text>
+          <Text style={flowStyles.battHeroNum} testID="battery-wh-value">{formatWh(usableWh)} Wh</Text>
+          <View style={flowStyles.battHeroTrack}>
+            <View style={[flowStyles.battHeroFill, {width: `${whRatio * 100}%`}]} />
+          </View>
+        </View>
+        <TVFocusGuideView style={flowStyles.battStepperRow} autoFocus>
           <Pressable
             testID="btn-wh-minus"
             hasTVPreferredFocus
             accessibilityLabel="Decrease capacity by 100 watt hours"
             onFocus={() => setFocus('wh-minus')}
             onPress={guard(() => setBattery(usableWh - 100, maxW))}
-            style={styles.stepperSlot}>
-            <FocusTile focused={focus === 'wh-minus'} style={[styles.stepperButton, focus === 'wh-minus' && styles.cardFocused]}>
-              <Text style={styles.stepperButtonText}>− 100 Wh</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'wh-minus'}
+              style={[flowStyles.editStepperButton, focus === 'wh-minus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>− 100 Wh</Text>
             </FocusTile>
           </Pressable>
           <Pressable
@@ -747,24 +763,33 @@ export const App = () => {
             accessibilityLabel="Increase capacity by 100 watt hours"
             onFocus={() => setFocus('wh-plus')}
             onPress={guard(() => setBattery(usableWh + 100, maxW))}
-            style={styles.stepperSlot}>
-            <FocusTile focused={focus === 'wh-plus'} style={[styles.stepperButton, focus === 'wh-plus' && styles.cardFocused]}>
-              <Text style={styles.stepperButtonText}>+ 100 Wh</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'wh-plus'}
+              style={[flowStyles.editStepperButton, focus === 'wh-plus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>+ 100 Wh</Text>
             </FocusTile>
           </Pressable>
         </TVFocusGuideView>
 
-        <Text style={[styles.sectionLabel, {marginTop: spacing.xs}]}>Output limit</Text>
-        <Text style={styles.bigValue} testID="battery-maxw-value">{maxW} W limit</Text>
-        <TVFocusGuideView style={styles.stepperRow}>
+        <View style={flowStyles.battHeroWrap}>
+          <Text style={flowStyles.editHeroEyebrow}>Output limit</Text>
+          <Text style={flowStyles.battHeroNum} testID="battery-maxw-value">{maxW} W limit</Text>
+          <View style={flowStyles.battHeroTrack}>
+            <View style={[flowStyles.battHeroFill, {width: `${wRatio * 100}%`}]} />
+          </View>
+        </View>
+        <TVFocusGuideView style={flowStyles.battStepperRow}>
           <Pressable
             testID="btn-w-minus"
             accessibilityLabel="Decrease output limit by 10 watts"
             onFocus={() => setFocus('w-minus')}
             onPress={guard(() => setBattery(usableWh, maxW - 10))}
-            style={styles.stepperSlot}>
-            <FocusTile focused={focus === 'w-minus'} style={[styles.stepperButton, focus === 'w-minus' && styles.cardFocused]}>
-              <Text style={styles.stepperButtonText}>− 10 W</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'w-minus'}
+              style={[flowStyles.editStepperButton, focus === 'w-minus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>− 10 W</Text>
             </FocusTile>
           </Pressable>
           <Pressable
@@ -772,9 +797,11 @@ export const App = () => {
             accessibilityLabel="Increase output limit by 10 watts"
             onFocus={() => setFocus('w-plus')}
             onPress={guard(() => setBattery(usableWh, maxW + 10))}
-            style={styles.stepperSlot}>
-            <FocusTile focused={focus === 'w-plus'} style={[styles.stepperButton, focus === 'w-plus' && styles.cardFocused]}>
-              <Text style={styles.stepperButtonText}>+ 10 W</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'w-plus'}
+              style={[flowStyles.editStepperButton, focus === 'w-plus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>+ 10 W</Text>
             </FocusTile>
           </Pressable>
         </TVFocusGuideView>
@@ -782,19 +809,20 @@ export const App = () => {
         {plan && (
           <View
             style={[
-              styles.inlineStatus,
-              {backgroundColor: plan.requested.result.feasible ? colors.feasibleDim : colors.infeasibleDim},
+              flowStyles.editStatusPill,
+              {marginTop: spacing.xs},
+              {backgroundColor: plan.requested.result.feasible ? 'rgba(74,222,128,0.14)' : flow.coralSoft},
             ]}>
             <Text
               style={[
-                styles.inlineStatusText,
-                {color: plan.requested.result.feasible ? colors.feasible : colors.infeasible},
+                flowStyles.editStatusText,
+                {color: plan.requested.result.feasible ? colors.feasible : flow.coral},
               ]}>
               Plan is now {plan.requested.result.feasible ? 'FEASIBLE' : 'INFEASIBLE'}
             </Text>
           </View>
         )}
-        <Text style={styles.footerHint}>Press Back to return to the overview</Text>
+        <Text style={flowStyles.altFooterHint}>Press Back to return to the overview</Text>
       </View>
     );
   }
@@ -1473,4 +1501,14 @@ const flowStyles = StyleSheet.create({
     marginTop: spacing.md,
   },
   editStatusText: {fontSize: type.caption, fontWeight: '800'},
+
+  // ---- Battery screen only: two metrics stacked on one screen, so each
+  // gets a more compact version of the appliance-edit hero treatment
+  // rather than reusing edit* at full size (which would make the single-
+  // metric appliance-edit screen's own proportions collateral damage).
+  battHeroWrap: {marginTop: spacing.xs},
+  battHeroNum: {fontSize: 44, fontWeight: '800', color: flow.ink, marginTop: 2, letterSpacing: -0.5},
+  battHeroTrack: {height: 8, borderRadius: 4, backgroundColor: flow.line, overflow: 'hidden', marginTop: 6},
+  battHeroFill: {height: '100%', borderRadius: 4, backgroundColor: flow.accent},
+  battStepperRow: {flexDirection: 'row', marginTop: spacing.xs},
 });
