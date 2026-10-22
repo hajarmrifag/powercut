@@ -105,6 +105,11 @@ def fixed_cases():
     # Very tight max_w, large usable_wh: exercises power_or_window_conflict.
     tight_power = case_from_overrides('tight_power_conflict', 10000, 55, {})
     cases.append(tight_power)
+    # A protects_essentials repair (A) and a requires_compromise repair (B)
+    # returned together in the same plan -- regression guard for a bug where
+    # B's summary claimed "no fix was possible without reducing fridge" even
+    # though A, right next to it, is exactly that fix.
+    cases.append(case_from_overrides('mixed_tier_alternatives', 1600, 200, {}))
 
     # --- Phase B: household-defined essentials (critical_ids parameter) ---
     # Same default-scenario problem (infeasible, needs 1908 Wh) but with a

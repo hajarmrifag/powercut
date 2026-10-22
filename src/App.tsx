@@ -4,7 +4,7 @@ import {TVFocusGuideView, useKeplerBackHandler} from '@amazon-devices/react-nati
 import Svg, {Path} from '@amazon-devices/react-native-svg';
 import {fetchDefaults, fetchPlan} from './api';
 import {Icon, type IconName} from './icons';
-import {applianceLabel, colors, flow, motion, radius, spacing, type} from './theme';
+import {applianceIconName, applianceLabel, colors, flow, motion, radius, spacing, type} from './theme';
 import type {Alternative, ApplianceRequirement, Defaults, Plan} from './types';
 
 type Page = 'overview' | 'editAppliance' | 'editBattery' | 'alternatives';
@@ -782,29 +782,39 @@ export const App = () => {
   }
 
   // ---------------- Conflict + alternatives ----------------
+  // Same near-black / single-accent Sankey identity as the overview. Each
+  // card's energy bar and per-appliance change rows are derived from the
+  // same verified repair.result/repair.changed the engine already returned
+  // -- nothing here is computed or estimated client-side.
   function renderAlternatives() {
     if (!plan) {
       return null;
     }
     return (
-      <ScrollView ref={alternativesScrollRef} style={styles.screen} testID="screen-alternatives">
-        <Text style={styles.title}>Why this doesn't fit</Text>
-        <View style={styles.infoBanner}>
-          <Text style={styles.infoBannerText}>{plan.requested.explanation}</Text>
+      <ScrollView ref={alternativesScrollRef} style={flowStyles.screen} testID="screen-alternatives">
+        <Text style={flowStyles.altTitle}>Why this doesn't fit</Text>
+        <View style={flowStyles.altExplainBanner}>
+          <View style={flowStyles.altExplainIcon}>
+            <Icon name="warning" size={15} color={flow.coral} />
+          </View>
+          <Text style={flowStyles.altExplainText}>{plan.requested.explanation}</Text>
         </View>
         {renderStatusLine()}
 
-        <Text style={styles.sectionLabel}>Pick a verified alternative</Text>
+        <Text style={flowStyles.altSectionLabel}>Pick a verified alternative</Text>
         {plan.alternatives.length === 0 && (
-          <Text style={styles.paragraph} testID="no-alternatives">
+          <Text style={flowStyles.altEmpty} testID="no-alternatives">
             No automatic fix was found by changing one or two appliances. Try reducing more
             requirements yourself, or raise the battery capacity.
           </Text>
         )}
-        <TVFocusGuideView style={styles.alternativesRow} autoFocus>
+        <TVFocusGuideView style={flowStyles.altRow} autoFocus>
           {plan.alternatives.map((alt, i) => {
             const protects = alt.tier === 'protects_essentials';
-            const altRatio = budgetWh > 0 ? clamp((alt.result.energy_wh ?? 0) / budgetWh, 0, 1) : 0;
+            const altEnergy = alt.result.energy_wh ?? 0;
+            const altRatio = budgetWh > 0 ? clamp(altEnergy / budgetWh, 0, 1) : 0;
+            const isFocused = focus === 'alt-' + alt.id;
+            const caution = alternativeSafetyCaution(alt.changed.map(c => c.id));
             return (
               <Pressable
                 key={alt.id}
@@ -813,76 +823,88 @@ export const App = () => {
                 accessibilityLabel={`Alternative ${alt.id}: ${alt.summary}`}
                 onFocus={() => setFocus('alt-' + alt.id)}
                 onPress={guard(() => applyAlternative(alt))}
-                style={styles.altSlot}>
+                style={flowStyles.altSlot}>
                 <FocusTile
-                  focused={focus === 'alt-' + alt.id}
-                  style={[styles.altCard, focus === 'alt-' + alt.id && styles.cardFocused]}>
+                  focused={isFocused}
+                  style={[flowStyles.altCard, isFocused && flowStyles.altCardFocused]}>
                   <View
                     style={[
-                      styles.tierBadge,
-                      {backgroundColor: protects ? colors.feasibleDim : colors.infeasibleDim},
+                      flowStyles.altTierBadge,
+                      {backgroundColor: protects ? 'rgba(255,138,61,0.16)' : flow.coralSoft},
                     ]}
                     testID={`alt-tier-${alt.id}`}>
-                    <Text style={[styles.tierBadgeText, {color: protects ? colors.feasible : colors.infeasible}]}>
+                    <Text style={[flowStyles.altTierBadgeText, {color: protects ? flow.accent : flow.coral}]}>
                       {protects ? '✓ Protects essentials' : '⚠ Requires compromise'}
                     </Text>
                   </View>
-                  <Text style={styles.altTitle}>Alternative {alt.id}</Text>
-                  <Text style={styles.altChange}>Reduces: {alt.label}</Text>
+                  <Text style={flowStyles.altCardTitle}>Alternative {alt.id}</Text>
+                  <Text style={flowStyles.altChangeHeadline}>Reduces: {alt.label}</Text>
+                  <Text style={flowStyles.altCardSummary}>{alt.summary}</Text>
 
-                  <View style={styles.altProtectedWrap}>
-                    <Text style={styles.altProtectedLabel}>
-                      Stays as requested: {alt.stays_powered.map(id => applianceLabel[id] ?? id).join(', ')}
+                  <View style={flowStyles.altEnergyWrap}>
+                    <View style={flowStyles.altEnergyTrack}>
+                      <View style={[flowStyles.altEnergyFill, {width: `${altRatio * 100}%`}]} />
+                    </View>
+                    <Text style={flowStyles.altEnergyStats}>
+                      <Text style={flowStyles.altEnergyStatsStrong}>{formatWh(altEnergy)} Wh</Text> used
+                      {'  ·  '}
+                      <Text style={flowStyles.altEnergyStatsStrong}>{formatWh(alt.result.remaining_wh ?? 0)} Wh</Text>{' '}
+                      left
+                      {'  ·  '}peak <Text style={flowStyles.altEnergyStatsStrong}>{alt.result.peak_w} W</Text>
                     </Text>
                   </View>
 
-                  <Text style={styles.altSummary}>{alt.summary}</Text>
-
-                  <View style={styles.altStatRow}>
-                    <View style={styles.altStatBarWrap}>
-                      <View style={styles.miniTrackWide}>
-                        <View
-                          style={[
-                            styles.miniFillWide,
-                            {width: `${altRatio * 100}%`, backgroundColor: colors.feasible},
-                          ]}
-                        />
+                  <View style={flowStyles.altChangesWrap}>
+                    {alt.changed.map(c => (
+                      <View key={c.id} style={flowStyles.altChangeRow}>
+                        <View style={flowStyles.rowIconSlot}>
+                          <Icon name={(applianceIconName[c.id] ?? c.id) as IconName} size={11} color={flow.ink} />
+                        </View>
+                        <Text style={flowStyles.altChangeLabel}>{applianceLabel[c.id] ?? c.id}</Text>
+                        <Text style={flowStyles.altChangeHours}>
+                          {c.from_hours}h <Text style={flowStyles.altChangeHoursNew}>→ {c.to_hours}h</Text>
+                        </Text>
                       </View>
-                      <Text style={styles.altStat}>
-                        {alt.result.energy_wh} Wh used · {alt.result.remaining_wh} Wh left · peak{' '}
-                        {alt.result.peak_w} W
-                      </Text>
-                    </View>
+                    ))}
                   </View>
+
+                  <Text style={flowStyles.altStaysText}>
+                    Stays as requested:{' '}
+                    {alt.stays_powered.map((id, idx) => (
+                      <Text key={id} style={SAFETY_SENSITIVE_IDS.has(id) ? flowStyles.altStaysStrong : undefined}>
+                        {applianceLabel[id] ?? id}
+                        {idx < alt.stays_powered.length - 1 ? ', ' : ''}
+                      </Text>
+                    ))}
+                  </Text>
+
+                  {caution && (
+                    <View style={flowStyles.altCautionBanner} testID={`alt-safety-caution-${alt.id}`}>
+                      <Icon name="warning" size={14} color={flow.coral} />
+                      <Text style={flowStyles.altCautionText}>{caution}</Text>
+                    </View>
+                  )}
 
                   <Text
                     style={[
-                      styles.altVerified,
-                      {color: alt.independent_verification?.valid ? colors.feasible : colors.infeasible},
+                      flowStyles.altVerifiedText,
+                      {color: alt.independent_verification?.valid ? colors.feasible : flow.coral},
                     ]}>
                     {alt.independent_verification?.valid
                       ? '✓ Independently verified'
                       : '✗ verification failed'}
                   </Text>
-                  {(() => {
-                    const caution = alternativeSafetyCaution(alt.changed.map(c => c.id));
-                    return caution ? (
-                      <View style={styles.cautionBanner} testID={`alt-safety-caution-${alt.id}`}>
-                        <Icon name="warning" size={16} color={colors.infeasible} />
-                        <Text style={styles.cautionBannerText}>{caution}</Text>
-                      </View>
-                    ) : null;
-                  })()}
-                  <View style={styles.altApplyRow}>
-                    <Text style={styles.altApply}>Select to apply</Text>
+
+                  <View style={flowStyles.altApplyRow}>
+                    <Text style={flowStyles.altApplyText}>Select to apply</Text>
                   </View>
                 </FocusTile>
               </Pressable>
             );
           })}
         </TVFocusGuideView>
-        <Text style={styles.footer}>{plan.limits}</Text>
-        <Text style={styles.footerHint}>Press Back to return to the overview</Text>
+        <Text style={flowStyles.footer}>{plan.limits}</Text>
+        <Text style={flowStyles.altFooterHint}>Press Back to return to the overview</Text>
       </ScrollView>
     );
   }
@@ -1242,4 +1264,94 @@ const flowStyles = StyleSheet.create({
   secondaryFaint: {color: flow.inkFaint, fontWeight: '400', fontSize: type.caption},
 
   footer: {fontSize: type.caption, color: flow.inkFaint, marginTop: spacing.xs},
+
+  // ---- Alternatives screen: same near-black / single-accent system as
+  // the overview, so the two screens read as one product rather than a
+  // restyled original plus a leftover default-theme screen. ----
+  altTitle: {fontSize: type.title, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
+  altExplainBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: flow.line,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  altExplainIcon: {marginTop: 2, marginRight: spacing.xs},
+  altExplainText: {flex: 1, fontSize: type.small, color: flow.inkDim, lineHeight: 20},
+
+  altSectionLabel: {
+    fontSize: type.label,
+    color: flow.inkFaint,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  altEmpty: {fontSize: type.small, color: flow.inkDim, lineHeight: 20},
+
+  altRow: {flexDirection: 'row'},
+  altSlot: {flex: 1, marginHorizontal: spacing.xs, marginBottom: spacing.md},
+  altCard: {
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    padding: spacing.md,
+  },
+  altCardFocused: {borderColor: flow.accent},
+
+  altTierBadge: {alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill},
+  altTierBadgeText: {fontSize: 12, fontWeight: '800'},
+  altCardTitle: {fontSize: type.h1, fontWeight: '800', color: flow.ink, marginTop: spacing.xs},
+  altChangeHeadline: {fontSize: type.body, color: flow.accent, fontWeight: '700', marginTop: 2},
+  altCardSummary: {fontSize: type.caption, color: flow.inkDim, lineHeight: 18, marginTop: spacing.xs},
+
+  altEnergyWrap: {marginTop: spacing.sm},
+  altEnergyTrack: {height: 10, borderRadius: 5, backgroundColor: flow.line, overflow: 'hidden'},
+  altEnergyFill: {height: '100%', borderRadius: 5, backgroundColor: flow.accent},
+  altEnergyStats: {fontSize: 11, color: flow.inkFaint, marginTop: 4},
+  altEnergyStatsStrong: {color: flow.ink, fontWeight: '700'},
+
+  altChangesWrap: {marginTop: spacing.sm},
+  altChangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: flow.line,
+  },
+  altChangeLabel: {flex: 1, fontSize: type.small, color: flow.ink, fontWeight: '600', marginLeft: 6},
+  altChangeHours: {fontSize: type.small, color: flow.inkDim, fontWeight: '600'},
+  altChangeHoursNew: {color: flow.ink, fontWeight: '800'},
+
+  altStaysText: {fontSize: type.caption, color: flow.inkFaint, lineHeight: 17, marginTop: spacing.sm},
+  altStaysStrong: {color: flow.accent, fontWeight: '700'},
+
+  altCautionBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: flow.coralSoft,
+    borderRadius: radius.sm,
+    padding: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  altCautionText: {flex: 1, fontSize: 11.5, color: flow.coral, fontWeight: '600', marginLeft: 6, lineHeight: 15},
+
+  altVerifiedText: {fontSize: type.caption, fontWeight: '700', marginTop: spacing.sm},
+
+  altApplyRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: flow.line,
+  },
+  altApplyText: {fontSize: type.caption, color: flow.inkDim, fontWeight: '700'},
+
+  altFooterHint: {fontSize: type.caption, color: flow.inkFaint, marginTop: 4, marginBottom: spacing.md},
 });

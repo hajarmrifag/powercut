@@ -163,10 +163,22 @@ function alternativeSummary(
   changedIds: Set<string>,
   touchesCritical: string[],
   criticalIds: Set<string>,
+  anyProtectsEssentials: boolean,
 ): string {
   const changes = [...changedIds].sort().join(', ');
   if (tier === 'requires_compromise') {
     const critical = [...touchesCritical].sort().join(' and ');
+    if (anyProtectsEssentials) {
+      // A protects_essentials alternative exists elsewhere in this same
+      // plan's alternatives list, so "no fix was possible" would be false
+      // here -- this repair only reaches a larger saving by also touching
+      // a critical id, not the only way to fix the plan.
+      return (
+        `This repair also reduces ${critical}, usually protected by ` +
+        `default. A separate alternative avoids touching ${critical} ` +
+        `entirely. Reduces: ${changes}.`
+      );
+    }
     return (
       `No fix was possible without also reducing ${critical} -- usually ` +
       `protected by default. This repair reduces: ${changes}.`
@@ -217,6 +229,7 @@ export function buildPlan(
 
   const repairs = result.feasible ? [] : findRepairs(problem, 2, criticalIds);
   const allIds = new Set(problem.appliances.map(a => a.id));
+  const anyProtectsEssentials = repairs.some(r => r.tier === 'protects_essentials');
   const labels = ['A', 'B'];
   const alternatives = repairs.map((repair, i) => {
     const changedIds = new Set(repair.changed.map(c => c.id));
@@ -227,7 +240,13 @@ export function buildPlan(
       changed: repair.changed,
       stays_powered: [...allIds].filter(id => !changedIds.has(id)).sort(),
       label: repair.changed.map(c => `${c.id}: ${c.from_hours}h → ${c.to_hours}h`).join(', '),
-      summary: alternativeSummary(repair.tier!, changedIds, repair.touches_critical!, criticalIds),
+      summary: alternativeSummary(
+        repair.tier!,
+        changedIds,
+        repair.touches_critical!,
+        criticalIds,
+        anyProtectsEssentials,
+      ),
       problem: repair.problem,
       result: repair.result,
       independent_verification: repair.independent_verification,

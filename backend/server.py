@@ -137,10 +137,18 @@ def _default_required_hours():
     return {a['id']: a['required_hours'] for a in base['appliances']}
 
 
-def _alternative_summary(tier, changed_ids, touches_critical, critical_ids):
+def _alternative_summary(tier, changed_ids, touches_critical, critical_ids, any_protects_essentials):
     changes = ', '.join(sorted(changed_ids))
     if tier == 'requires_compromise':
         critical = ' and '.join(sorted(touches_critical))
+        if any_protects_essentials:
+            # A protects_essentials alternative exists elsewhere in this same
+            # plan's alternatives list, so "no fix was possible" would be
+            # false here -- this repair only reaches a larger saving by also
+            # touching a critical id, not the only way to fix the plan.
+            return (f"This repair also reduces {critical}, usually protected by "
+                    f"default. A separate alternative avoids touching {critical} "
+                    f"entirely. Reduces: {changes}.")
         return (f"No fix was possible without also reducing {critical} -- usually "
                 f"protected by default. This repair reduces: {changes}.")
     kept = ', '.join(sorted(critical_ids)) if critical_ids else 'none selected'
@@ -174,6 +182,7 @@ def build_plan(usable_wh, max_w, overrides, critical_ids=None):
                  'requested_wh': requested_wh, 'critical_reduced': critical_reduced}
     repairs = [] if result['feasible'] else find_repairs(problem, max_results=2, critical_ids=critical_ids)
     all_ids = {a['id'] for a in problem['appliances']}
+    any_protects_essentials = any(r['tier'] == 'protects_essentials' for r in repairs)
     alternatives = []
     for label, repair in zip('AB', repairs):
         changed_ids = {c['id'] for c in repair['changed']}
@@ -185,7 +194,8 @@ def build_plan(usable_wh, max_w, overrides, critical_ids=None):
             'stays_powered': sorted(all_ids - changed_ids),
             'label': ', '.join(
                 f"{c['id']}: {c['from_hours']}h → {c['to_hours']}h" for c in repair['changed']),
-            'summary': _alternative_summary(repair['tier'], changed_ids, repair['touches_critical'], critical_ids),
+            'summary': _alternative_summary(repair['tier'], changed_ids, repair['touches_critical'],
+                                             critical_ids, any_protects_essentials),
             'problem': repair['problem'],
             'result': repair['result'],
             'independent_verification': repair['independent_verification'],
