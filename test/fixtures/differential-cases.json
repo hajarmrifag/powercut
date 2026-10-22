@@ -1,5 +1,5 @@
 {
-  "generated_count": 230,
+  "generated_count": 231,
   "cases": [
     {
       "name": "default_infeasible",
@@ -6367,6 +6367,855 @@
       }
     },
     {
+      "name": "mixed_tier_alternatives",
+      "input": {
+        "usable_wh": 1600,
+        "max_w": 200,
+        "appliances": [
+          {
+            "id": "fridge",
+            "required_hours": 12
+          },
+          {
+            "id": "router",
+            "required_hours": 12
+          },
+          {
+            "id": "lamp",
+            "required_hours": 4
+          },
+          {
+            "id": "phone",
+            "required_hours": 1
+          },
+          {
+            "id": "laptop",
+            "required_hours": 3
+          },
+          {
+            "id": "fan",
+            "required_hours": 4
+          }
+        ]
+      },
+      "expected": {
+        "schema": 3,
+        "synthetic": true,
+        "title": "Tonight's outage plan",
+        "outage_hours": 12,
+        "budget_wh": 1600,
+        "max_w": 200,
+        "critical_ids": [
+          "fridge",
+          "router"
+        ],
+        "limits": "Synthetic estimates. Hourly average loads. Startup surges, wiring and battery aging are not modeled. Not a guarantee.",
+        "requested": {
+          "problem": {
+            "synthetic": true,
+            "hours": 12,
+            "usable_wh": 1600,
+            "max_w": 200,
+            "assumptions": [
+              "one-hour bins",
+              "constant bounded effective watts",
+              "fridge is averaged duty load",
+              "no charging, solar, wiring validation or startup surge model",
+              "usable Wh already accounts for reserve and conversion loss"
+            ],
+            "appliances": [
+              {
+                "id": "fridge",
+                "low_w": 60,
+                "high_w": 90,
+                "required_hours": 12,
+                "allowed_hours": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ]
+              },
+              {
+                "id": "router",
+                "low_w": 20,
+                "high_w": 30,
+                "required_hours": 12,
+                "allowed_hours": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ]
+              },
+              {
+                "id": "lamp",
+                "low_w": 8,
+                "high_w": 12,
+                "required_hours": 4,
+                "allowed_hours": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              {
+                "id": "phone",
+                "low_w": 15,
+                "high_w": 25,
+                "required_hours": 1,
+                "allowed_hours": [
+                  0,
+                  1,
+                  2
+                ]
+              },
+              {
+                "id": "laptop",
+                "low_w": 45,
+                "high_w": 65,
+                "required_hours": 3,
+                "allowed_hours": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              },
+              {
+                "id": "fan",
+                "low_w": 30,
+                "high_w": 50,
+                "required_hours": 4,
+                "allowed_hours": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ]
+              }
+            ]
+          },
+          "result": {
+            "feasible": false,
+            "reason": "energy_lower_bound",
+            "required_wh": 1908,
+            "budget_wh": 1600
+          },
+          "conflict": {
+            "services": [
+              "fridge",
+              "router",
+              "laptop"
+            ],
+            "required_wh": 1635,
+            "budget_wh": 1600,
+            "cardinality": 3,
+            "scope": "constant upper-bound energy with fixed usable battery"
+          },
+          "explanation": "Running fridge, router, laptop for their full requested hours needs 1635 Wh, but only 1600 Wh is available: a shortfall of 35 Wh. That is the smallest set of services that alone breaks the battery budget.",
+          "independent_verification": null,
+          "requested_wh": 1908,
+          "critical_reduced": []
+        },
+        "alternatives": [
+          {
+            "id": "A",
+            "tier": "protects_essentials",
+            "touches_critical": [],
+            "changed": [
+              {
+                "id": "fan",
+                "from_hours": 4,
+                "to_hours": 0
+              },
+              {
+                "id": "laptop",
+                "from_hours": 3,
+                "to_hours": 1
+              }
+            ],
+            "stays_powered": [
+              "fridge",
+              "lamp",
+              "phone",
+              "router"
+            ],
+            "label": "fan: 4h \u2192 0h, laptop: 3h \u2192 1h",
+            "summary": "Keeps every essential service (fridge, router) at its current hours. Reduces: fan, laptop.",
+            "problem": {
+              "synthetic": true,
+              "hours": 12,
+              "usable_wh": 1600,
+              "max_w": 200,
+              "assumptions": [
+                "one-hour bins",
+                "constant bounded effective watts",
+                "fridge is averaged duty load",
+                "no charging, solar, wiring validation or startup surge model",
+                "usable Wh already accounts for reserve and conversion loss"
+              ],
+              "appliances": [
+                {
+                  "id": "fridge",
+                  "low_w": 60,
+                  "high_w": 90,
+                  "required_hours": 12,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11
+                  ]
+                },
+                {
+                  "id": "router",
+                  "low_w": 20,
+                  "high_w": 30,
+                  "required_hours": 12,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11
+                  ]
+                },
+                {
+                  "id": "lamp",
+                  "low_w": 8,
+                  "high_w": 12,
+                  "required_hours": 4,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3
+                  ]
+                },
+                {
+                  "id": "phone",
+                  "low_w": 15,
+                  "high_w": 25,
+                  "required_hours": 1,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "id": "laptop",
+                  "low_w": 45,
+                  "high_w": 65,
+                  "required_hours": 1,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                  ]
+                },
+                {
+                  "id": "fan",
+                  "low_w": 30,
+                  "high_w": 50,
+                  "required_hours": 0,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11
+                  ]
+                }
+              ]
+            },
+            "result": {
+              "feasible": true,
+              "schedule": [
+                [
+                  "fridge",
+                  "router",
+                  "lamp"
+                ],
+                [
+                  "fridge",
+                  "router",
+                  "lamp"
+                ],
+                [
+                  "fridge",
+                  "router",
+                  "lamp",
+                  "phone"
+                ],
+                [
+                  "fridge",
+                  "router",
+                  "lamp"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ],
+                [
+                  "fridge",
+                  "router",
+                  "laptop"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ]
+              ],
+              "energy_wh": 1578,
+              "remaining_wh": 22,
+              "peak_w": 185,
+              "bound": "high_w"
+            },
+            "independent_verification": {
+              "valid": true,
+              "errors": [],
+              "energy_wh": 1578,
+              "remaining_wh": 22,
+              "peak_w": 185,
+              "service_hours": {
+                "fridge": 12,
+                "router": 12,
+                "lamp": 4,
+                "phone": 1,
+                "laptop": 1,
+                "fan": 0
+              },
+              "hourly": [
+                {
+                  "hour": 0,
+                  "loads": [
+                    "fridge",
+                    "router",
+                    "lamp"
+                  ],
+                  "watts": 132,
+                  "remaining_wh": 1468
+                },
+                {
+                  "hour": 1,
+                  "loads": [
+                    "fridge",
+                    "router",
+                    "lamp"
+                  ],
+                  "watts": 132,
+                  "remaining_wh": 1336
+                },
+                {
+                  "hour": 2,
+                  "loads": [
+                    "fridge",
+                    "router",
+                    "lamp",
+                    "phone"
+                  ],
+                  "watts": 157,
+                  "remaining_wh": 1179
+                },
+                {
+                  "hour": 3,
+                  "loads": [
+                    "fridge",
+                    "router",
+                    "lamp"
+                  ],
+                  "watts": 132,
+                  "remaining_wh": 1047
+                },
+                {
+                  "hour": 4,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 927
+                },
+                {
+                  "hour": 5,
+                  "loads": [
+                    "fridge",
+                    "router",
+                    "laptop"
+                  ],
+                  "watts": 185,
+                  "remaining_wh": 742
+                },
+                {
+                  "hour": 6,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 622
+                },
+                {
+                  "hour": 7,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 502
+                },
+                {
+                  "hour": 8,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 382
+                },
+                {
+                  "hour": 9,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 262
+                },
+                {
+                  "hour": 10,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 142
+                },
+                {
+                  "hour": 11,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 22
+                }
+              ]
+            },
+            "hours_removed": 6
+          },
+          {
+            "id": "B",
+            "tier": "requires_compromise",
+            "touches_critical": [
+              "fridge"
+            ],
+            "changed": [
+              {
+                "id": "fridge",
+                "from_hours": 12,
+                "to_hours": 8
+              }
+            ],
+            "stays_powered": [
+              "fan",
+              "lamp",
+              "laptop",
+              "phone",
+              "router"
+            ],
+            "label": "fridge: 12h \u2192 8h",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
+            "problem": {
+              "synthetic": true,
+              "hours": 12,
+              "usable_wh": 1600,
+              "max_w": 200,
+              "assumptions": [
+                "one-hour bins",
+                "constant bounded effective watts",
+                "fridge is averaged duty load",
+                "no charging, solar, wiring validation or startup surge model",
+                "usable Wh already accounts for reserve and conversion loss"
+              ],
+              "appliances": [
+                {
+                  "id": "fridge",
+                  "low_w": 60,
+                  "high_w": 90,
+                  "required_hours": 8,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11
+                  ]
+                },
+                {
+                  "id": "router",
+                  "low_w": 20,
+                  "high_w": 30,
+                  "required_hours": 12,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11
+                  ]
+                },
+                {
+                  "id": "lamp",
+                  "low_w": 8,
+                  "high_w": 12,
+                  "required_hours": 4,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3
+                  ]
+                },
+                {
+                  "id": "phone",
+                  "low_w": 15,
+                  "high_w": 25,
+                  "required_hours": 1,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "id": "laptop",
+                  "low_w": 45,
+                  "high_w": 65,
+                  "required_hours": 3,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                  ]
+                },
+                {
+                  "id": "fan",
+                  "low_w": 30,
+                  "high_w": 50,
+                  "required_hours": 4,
+                  "allowed_hours": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11
+                  ]
+                }
+              ]
+            },
+            "result": {
+              "feasible": true,
+              "schedule": [
+                [
+                  "router",
+                  "lamp",
+                  "fridge"
+                ],
+                [
+                  "router",
+                  "lamp",
+                  "fridge"
+                ],
+                [
+                  "router",
+                  "lamp",
+                  "phone",
+                  "fridge"
+                ],
+                [
+                  "router",
+                  "lamp",
+                  "laptop",
+                  "fan"
+                ],
+                [
+                  "router",
+                  "laptop",
+                  "fan"
+                ],
+                [
+                  "router",
+                  "laptop",
+                  "fan"
+                ],
+                [
+                  "router",
+                  "fridge"
+                ],
+                [
+                  "router",
+                  "fridge"
+                ],
+                [
+                  "router",
+                  "fridge"
+                ],
+                [
+                  "router",
+                  "fan"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ],
+                [
+                  "fridge",
+                  "router"
+                ]
+              ],
+              "energy_wh": 1548,
+              "remaining_wh": 52,
+              "peak_w": 157,
+              "bound": "high_w"
+            },
+            "independent_verification": {
+              "valid": true,
+              "errors": [],
+              "energy_wh": 1548,
+              "remaining_wh": 52,
+              "peak_w": 157,
+              "service_hours": {
+                "fridge": 8,
+                "router": 12,
+                "lamp": 4,
+                "phone": 1,
+                "laptop": 3,
+                "fan": 4
+              },
+              "hourly": [
+                {
+                  "hour": 0,
+                  "loads": [
+                    "router",
+                    "lamp",
+                    "fridge"
+                  ],
+                  "watts": 132,
+                  "remaining_wh": 1468
+                },
+                {
+                  "hour": 1,
+                  "loads": [
+                    "router",
+                    "lamp",
+                    "fridge"
+                  ],
+                  "watts": 132,
+                  "remaining_wh": 1336
+                },
+                {
+                  "hour": 2,
+                  "loads": [
+                    "router",
+                    "lamp",
+                    "phone",
+                    "fridge"
+                  ],
+                  "watts": 157,
+                  "remaining_wh": 1179
+                },
+                {
+                  "hour": 3,
+                  "loads": [
+                    "router",
+                    "lamp",
+                    "laptop",
+                    "fan"
+                  ],
+                  "watts": 157,
+                  "remaining_wh": 1022
+                },
+                {
+                  "hour": 4,
+                  "loads": [
+                    "router",
+                    "laptop",
+                    "fan"
+                  ],
+                  "watts": 145,
+                  "remaining_wh": 877
+                },
+                {
+                  "hour": 5,
+                  "loads": [
+                    "router",
+                    "laptop",
+                    "fan"
+                  ],
+                  "watts": 145,
+                  "remaining_wh": 732
+                },
+                {
+                  "hour": 6,
+                  "loads": [
+                    "router",
+                    "fridge"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 612
+                },
+                {
+                  "hour": 7,
+                  "loads": [
+                    "router",
+                    "fridge"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 492
+                },
+                {
+                  "hour": 8,
+                  "loads": [
+                    "router",
+                    "fridge"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 372
+                },
+                {
+                  "hour": 9,
+                  "loads": [
+                    "router",
+                    "fan"
+                  ],
+                  "watts": 80,
+                  "remaining_wh": 292
+                },
+                {
+                  "hour": 10,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 172
+                },
+                {
+                  "hour": 11,
+                  "loads": [
+                    "fridge",
+                    "router"
+                  ],
+                  "watts": 120,
+                  "remaining_wh": 52
+                }
+              ]
+            },
+            "hours_removed": 4
+          }
+        ]
+      }
+    },
+    {
       "name": "custom_critical_lamp_phone",
       "input": {
         "usable_wh": 1800,
@@ -12531,7 +13380,7 @@
               "router"
             ],
             "label": "fridge: 6h \u2192 0h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -14200,7 +15049,7 @@
               "router"
             ],
             "label": "fan: 11h \u2192 7h, fridge: 1h \u2192 0h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fan, fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fan, fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -18894,7 +19743,7 @@
               "router"
             ],
             "label": "fridge: 12h \u2192 4h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -27246,7 +28095,7 @@
               "router"
             ],
             "label": "fridge: 9h \u2192 5h, lamp: 5h \u2192 4h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge, lamp.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge, lamp.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -29475,7 +30324,7 @@
               "router"
             ],
             "label": "fan: 9h \u2192 7h, fridge: 4h \u2192 0h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fan, fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fan, fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -30606,7 +31455,7 @@
               "router"
             ],
             "label": "fridge: 7h \u2192 3h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -31411,7 +32260,7 @@
               "router"
             ],
             "label": "fridge: 1h \u2192 0h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -35689,7 +36538,7 @@
               "router"
             ],
             "label": "fridge: 12h \u2192 9h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -36511,7 +37360,7 @@
               "router"
             ],
             "label": "fridge: 6h \u2192 0h, lamp: 3h \u2192 2h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge, lamp.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge, lamp.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -38552,7 +39401,7 @@
               "router"
             ],
             "label": "fridge: 7h \u2192 4h, laptop: 7h \u2192 6h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge, laptop.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge, laptop.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -51093,7 +51942,7 @@
               "router"
             ],
             "label": "fridge: 4h \u2192 1h, lamp: 5h \u2192 4h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge, lamp.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge, lamp.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -56037,7 +56886,7 @@
               "router"
             ],
             "label": "fan: 12h \u2192 6h, fridge: 5h \u2192 0h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fan, fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fan, fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -58807,7 +59656,7 @@
               "router"
             ],
             "label": "fridge: 10h \u2192 9h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -59609,7 +60458,7 @@
               "phone"
             ],
             "label": "laptop: 7h \u2192 0h, router: 12h \u2192 8h",
-            "summary": "No fix was possible without also reducing router -- usually protected by default. This repair reduces: laptop, router.",
+            "summary": "This repair also reduces router, usually protected by default. A separate alternative avoids touching router entirely. Reduces: laptop, router.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -62962,7 +63811,7 @@
               "router"
             ],
             "label": "fridge: 12h \u2192 6h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -76405,7 +77254,7 @@
               "router"
             ],
             "label": "fridge: 12h \u2192 6h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -83575,7 +84424,7 @@
               "router"
             ],
             "label": "fridge: 11h \u2192 6h",
-            "summary": "No fix was possible without also reducing fridge -- usually protected by default. This repair reduces: fridge.",
+            "summary": "This repair also reduces fridge, usually protected by default. A separate alternative avoids touching fridge entirely. Reduces: fridge.",
             "problem": {
               "synthetic": true,
               "hours": 12,
@@ -104871,7 +105720,7 @@
               "phone"
             ],
             "label": "lamp: 5h \u2192 3h, router: 12h \u2192 1h",
-            "summary": "No fix was possible without also reducing router -- usually protected by default. This repair reduces: lamp, router.",
+            "summary": "This repair also reduces router, usually protected by default. A separate alternative avoids touching router entirely. Reduces: lamp, router.",
             "problem": {
               "synthetic": true,
               "hours": 12,

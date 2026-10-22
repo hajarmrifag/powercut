@@ -1,8 +1,10 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Animated, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {TVFocusGuideView, useKeplerBackHandler} from '@amazon-devices/react-native-kepler';
+import Svg, {Path} from '@amazon-devices/react-native-svg';
 import {fetchDefaults, fetchPlan} from './api';
-import {applianceIcon, applianceLabel, colors, spacing, type} from './theme';
+import {Icon, type IconName} from './icons';
+import {applianceIconName, applianceLabel, colors, flow, motion, radius, spacing, type} from './theme';
 import type {Alternative, ApplianceRequirement, Defaults, Plan} from './types';
 
 type Page = 'overview' | 'editAppliance' | 'editBattery' | 'alternatives';
@@ -10,6 +12,69 @@ type Page = 'overview' | 'editAppliance' | 'editBattery' | 'alternatives';
 const OUTAGE_HOURS = 12;
 const APPLIANCE_IDS = ['fridge', 'router', 'lamp', 'phone', 'laptop', 'fan'];
 const DEFAULT_CRITICAL_IDS = new Set(['fridge', 'router']);
+
+// ---- Overview energy-flow geometry -------------------------------------
+// The overview's centerpiece is a Sankey ribbon from the battery budget
+// into each appliance's share of tonight's demand. Ribbons are drawn as
+// real vector paths via @amazon-devices/react-native-svg, Amazon's own
+// Kepler-platform fork of react-native-svg (declared Kepler module
+// com.amazon.kepler.svg_3@ISVG_0, version-matched to this project's exact
+// react-native/react-native-kepler versions) -- not a third-party native
+// module of unknown Vega support. An earlier build approximated the curve
+// as a strip of thin rectangles; at any slice density fine enough to look
+// smooth at the edges, the strip's flat-color slices still show faint
+// vertical seams in the fill under the device's rendering, which a true
+// path fill does not have.
+const FLOW_ROW_H = 26;
+const FLOW_GAP = 6;
+const FLOW_TOTAL_H = APPLIANCE_IDS.length * FLOW_ROW_H + (APPLIANCE_IDS.length - 1) * FLOW_GAP;
+const FLOW_RIBBON_W = 200;
+const FLOW_CAPSULE_W = 10;
+
+type FlowRow = {id: string; wh: number; isCritical: boolean};
+type FlowBand = {top: number; bottom: number};
+
+function computeFlowBands(rows: FlowRow[], totalWh: number) {
+  const safeTotal = totalWh > 0 ? totalWh : 1;
+  let cum = 0;
+  const src: FlowBand[] = rows.map(r => {
+    const top = (cum / safeTotal) * FLOW_TOTAL_H;
+    cum += r.wh;
+    const bottom = (cum / safeTotal) * FLOW_TOTAL_H;
+    return {top, bottom};
+  });
+  let y = 0;
+  const dest: FlowBand[] = rows.map(() => {
+    const band = {top: y, bottom: y + FLOW_ROW_H};
+    y += FLOW_ROW_H + FLOW_GAP;
+    return band;
+  });
+  return {src, dest};
+}
+
+// Same curve construction as the approved flow-overview-v3 mockup: two
+// cubic beziers with control points at the horizontal midpoint, giving a
+// flat tangent at both the capsule and row ends (the standard Sankey-link
+// S-curve), closed into a single filled path per ribbon.
+function buildRibbonPath(band: {src: FlowBand; dest: FlowBand}): string {
+  const {src, dest} = band;
+  const x0 = 0;
+  const x1 = FLOW_RIBBON_W;
+  const mid = (x0 + x1) / 2;
+  return [
+    `M ${x0} ${src.top}`,
+    `C ${mid} ${src.top} ${mid} ${dest.top} ${x1} ${dest.top}`,
+    `L ${x1} ${dest.bottom}`,
+    `C ${mid} ${dest.bottom} ${mid} ${src.bottom} ${x0} ${src.bottom}`,
+    'Z',
+  ].join(' ');
+}
+
+// No Intl/toLocaleString dependency on-device: a plain regex grouping is
+// guaranteed to work on Hermes without relying on bundled ICU data.
+function formatWh(n: number): string {
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 // "Essential" here is a household preference the optimizer respects --
 // it is not a safety certification. Fridge and router are the two
@@ -31,10 +96,10 @@ const SAFETY_NOTE: Record<string, string> = {
 function essentialNoteFor(id: string, isCritical: boolean): string {
   if (isCritical) {
     if (id === 'fridge') {
-      return 'Marked essential: protects food safety. The automatic repair search won\'t reduce it unless no other fix exists.';
+      return "Marked essential: PowerCut prioritizes the fridge's requested runtime. This does not guarantee food safety.";
     }
     if (id === 'router') {
-      return 'Marked essential: keeps emergency connectivity available. The automatic repair search won\'t reduce it unless no other fix exists.';
+      return "Marked essential: PowerCut prioritizes the router's requested runtime. This does not guarantee connectivity.";
     }
     return "Marked essential: the automatic repair search won't reduce it unless no other fix exists.";
   }
@@ -54,13 +119,48 @@ function alternativeSafetyCaution(changedIds: string[]): string | null {
   const concerns = touches
     .map(id => (id === 'fridge' ? 'food safety' : 'connectivity'))
     .join(' and ');
-  return (
-    `⚠ Verified against the energy math only -- not a guarantee of ${concerns}.`
-  );
+  const capitalized = concerns.charAt(0).toUpperCase() + concerns.slice(1);
+  const verb = touches.length > 1 ? 'are' : 'is';
+  return `Verified against the energy model only. ${capitalized} ${verb} not guaranteed.`;
 }
 
 function clamp(value: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, value));
+}
+
+// Every focusable card/button in the app renders its visual body through
+// this wrapper so TV remote focus reads consistently everywhere: a small,
+// quick scale-up plus the caller's own focused styling (border/background
+// color), never scale alone. useNativeDriver is safe here -- transform and
+// opacity are the two style properties RN's native driver always supports,
+// and this is the only animation in the app, so a failure mode is easy to
+// reason about and does not touch any layout-affecting property.
+function FocusTile({
+  focused,
+  style,
+  children,
+}: {
+  focused: boolean;
+  style?: object | Array<object | false | undefined>;
+  children: React.ReactNode;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    // Jest's test renderer has no real frame clock, so a running
+    // Animated.timing there only produces "not wrapped in act()" noise
+    // long after a test finishes, never a visible effect. Snap instead of
+    // animating under test; real devices always take the animated path.
+    if (typeof jest !== 'undefined') {
+      scale.setValue(focused ? motion.focusScale : 1);
+      return;
+    }
+    Animated.timing(scale, {
+      toValue: focused ? motion.focusScale : 1,
+      duration: motion.duration,
+      useNativeDriver: true,
+    }).start();
+  }, [focused, scale]);
+  return <Animated.View style={[style, {transform: [{scale}]}]}>{children}</Animated.View>;
 }
 
 export const App = () => {
@@ -245,132 +345,243 @@ export const App = () => {
   const feasible = plan?.requested.result.feasible ?? null;
   const requestedWh = plan?.requested.requested_wh ?? 0;
   const budgetWh = plan?.budget_wh ?? usableWh;
-  const energyRatio = budgetWh > 0 ? requestedWh / budgetWh : 0;
+  const deltaWh = requestedWh - budgetWh;
 
   // ---------------- Overview ----------------
+  // Energy-flow redesign: a Sankey-style ribbon from the battery budget
+  // into each appliance's real share of tonight's demand (high_w *
+  // required_hours per appliance, the same quantity the engine itself
+  // sums to produce requested_wh -- see engine/solver.py's solve()).
+  // Row order is the fixed APPLIANCE_IDS order, not sorted by size: a
+  // household can mark any appliance essential at any time, and reordering
+  // rows by their current Wh share would move the row under D-pad focus
+  // out from under the remote the moment its data changed.
   function renderOverview() {
+    const flowRows: FlowRow[] = APPLIANCE_IDS.map(id => {
+      const info = applianceInfo?.[id];
+      const wh = info ? info.high_w * hoursFor(id) : 0;
+      return {id, wh, isCritical: criticalIds.has(id)};
+    });
+    const {src, dest} = computeFlowBands(flowRows, requestedWh);
+    const capFrac = requestedWh > 0 ? budgetWh / requestedWh : 1;
+    const capY = clamp(capFrac, 0, 1) * FLOW_TOTAL_H;
+    const showOverage = deltaWh > 0 && plan !== null;
+
     return (
-      <View style={styles.screen} testID="screen-overview">
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.title}>PowerCut</Text>
-            <Text style={styles.subtitle}>{plan?.title ?? "Tonight's outage plan"} · {OUTAGE_HOURS}h</Text>
-          </View>
-          {feasible !== null && (
-            <View
-              style={[
-                styles.statusBadge,
-                {backgroundColor: feasible ? colors.feasibleDim : colors.infeasibleDim},
-              ]}
-              testID="status-badge">
-              <Text style={[styles.statusText, {color: feasible ? colors.feasible : colors.infeasible}]}>
-                {feasible ? 'FEASIBLE' : 'INFEASIBLE'}
-              </Text>
+      <View style={flowStyles.screen} testID="screen-overview">
+        <View style={flowStyles.topbar}>
+          <Text style={flowStyles.word}>PowerCut</Text>
+          <View style={flowStyles.topright}>
+            {feasible !== null && (
+              <View style={flowStyles.statusRow} testID="status-badge">
+                <View
+                  style={[
+                    flowStyles.statusDot,
+                    {backgroundColor: feasible ? colors.feasible : flow.coral},
+                  ]}
+                />
+                <Text style={[flowStyles.statusWord, {color: feasible ? colors.feasible : flow.coral}]}>
+                  {feasible ? 'FEASIBLE' : 'INFEASIBLE'}
+                </Text>
+              </View>
+            )}
+            <View style={flowStyles.legend}>
+              <View style={flowStyles.legendItem}>
+                <View style={[flowStyles.legendDot, {backgroundColor: flow.accent}]} />
+                <Text style={flowStyles.legendText}>Essential</Text>
+              </View>
+              <View style={flowStyles.legendItem}>
+                <View style={[flowStyles.legendDot, {backgroundColor: flow.flexible}]} />
+                <Text style={flowStyles.legendText}>Flexible</Text>
+              </View>
             </View>
-          )}
+          </View>
         </View>
 
-        <View style={styles.energyPanel}>
-          <View style={styles.energyLabelRow}>
-            <Text style={styles.energyLabel}>Energy needed</Text>
-            <Text style={styles.energyValue}>
-              {requestedWh} Wh of {budgetWh} Wh
+        <View style={flowStyles.hero}>
+          <Text style={flowStyles.heroEyebrow}>Tonight&#39;s {OUTAGE_HOURS}-hour outage plan</Text>
+          <Text style={flowStyles.heroNum}>{formatWh(requestedWh)} Wh</Text>
+          {plan && (
+            <Text style={flowStyles.heroSub}>
+              {deltaWh > 0
+                ? `That's `
+                : `That leaves `}
+              <Text style={flowStyles.heroSubStrong}>{formatWh(Math.abs(deltaWh))} Wh</Text>
+              {deltaWh > 0
+                ? ` more than the ${formatWh(budgetWh)} Wh the battery can give tonight.`
+                : ` of the ${formatWh(budgetWh)} Wh battery unused tonight.`}
             </Text>
-          </View>
-          <View style={styles.energyTrack}>
-            <View
-              style={[
-                styles.energyFill,
-                {
-                  width: `${clamp(energyRatio * 100, 2, 100)}%`,
-                  backgroundColor: energyRatio > 1 ? colors.infeasible : colors.feasible,
-                },
-              ]}
-            />
-          </View>
+          )}
           {renderStatusLine()}
         </View>
 
-        <TVFocusGuideView style={styles.applianceRow} autoFocus>
-          {APPLIANCE_IDS.map((id, i) => {
-            const info = applianceInfo?.[id];
-            const isCritical = criticalIds.has(id);
-            const wasReduced = plan?.requested.critical_reduced.includes(id);
-            return (
-              <Pressable
-                key={id}
-                testID={`tile-appliance-${id}`}
-                hasTVPreferredFocus={i === 0}
-                accessibilityLabel={
-                  `${applianceLabel[id]}, ${hoursFor(id)} hours` +
-                  (isCritical ? ', essential service' : '') +
-                  (wasReduced ? ', reduced below full' : '')
-                }
-                onFocus={() => setFocus(id)}
-                onPress={() => {
-                  setEditingId(id);
-                  setPage('editAppliance');
+        <View style={flowStyles.flowZone}>
+          <View style={flowStyles.capsule}>
+            {flowRows.map((r, i) => (
+              <View
+                key={r.id}
+                style={{
+                  height: Math.max(0, src[i].bottom - src[i].top),
+                  backgroundColor: r.isCritical ? flow.accent : flow.flexible,
+                  opacity: r.isCritical ? 1 : 0.55,
                 }}
-                style={[
-                  styles.applianceCard,
-                  isCritical && styles.applianceCardCritical,
-                  focus === id && styles.cardFocused,
-                ]}>
-                {isCritical && (
-                  <Text style={styles.essentialBadge} testID={`badge-essential-${id}`}>
-                    {wasReduced ? '⚠ essential' : '✓ essential'}
-                  </Text>
-                )}
-                <Text style={styles.applianceIcon}>{applianceIcon[id]}</Text>
-                <Text style={styles.applianceName}>{applianceLabel[id]}</Text>
-                <Text style={styles.applianceHours}>{hoursFor(id)}h</Text>
-                {info && <Text style={styles.applianceWatts}>{info.low_w}-{info.high_w} W</Text>}
-              </Pressable>
-            );
-          })}
-        </TVFocusGuideView>
+              />
+            ))}
+          </View>
 
-        <TVFocusGuideView style={styles.actionRow}>
-          <Pressable
-            testID="tile-battery"
-            accessibilityLabel={`Battery, ${usableWh} watt hours, ${maxW} watt limit`}
-            onFocus={() => setFocus('battery')}
-            onPress={() => setPage('editBattery')}
-            style={[styles.actionCard, focus === 'battery' && styles.cardFocused]}>
-            <Text style={styles.actionIcon}>🔋</Text>
-            <View>
-              <Text style={styles.applianceName}>Battery</Text>
-              <Text style={styles.actionValue}>{usableWh} Wh · {maxW} W limit</Text>
-            </View>
-          </Pressable>
-          {feasible === false && (
+          {showOverage && (
+            <>
+              <View style={[flowStyles.capacityTick, {top: capY - 1}]} />
+              <View style={[flowStyles.capacityLabelWrap, {top: clamp(capY - 30, 0, FLOW_TOTAL_H - 30)}]}>
+                <Text style={flowStyles.capacityLabel}>{formatWh(budgetWh)} Wh capacity</Text>
+                <Text style={flowStyles.capacityOver}>{formatWh(deltaWh)} Wh over</Text>
+              </View>
+            </>
+          )}
+
+          <Svg
+            width={FLOW_RIBBON_W}
+            height={FLOW_TOTAL_H}
+            style={flowStyles.ribbons}
+            pointerEvents="none">
+            {flowRows.map((r, i) => (
+              <Path
+                key={r.id}
+                d={buildRibbonPath({src: src[i], dest: dest[i]})}
+                fill={r.isCritical ? flow.accent : flow.flexible}
+                fillOpacity={r.isCritical ? 0.42 : 0.3}
+              />
+            ))}
+          </Svg>
+
+          <TVFocusGuideView style={flowStyles.rows} autoFocus>
+            {flowRows.map((r, i) => {
+              const id = r.id;
+              const wasReduced = plan?.requested.critical_reduced.includes(id);
+              const showTag = r.isCritical && SAFETY_SENSITIVE_IDS.has(id);
+              return (
+                <Pressable
+                  key={id}
+                  testID={`tile-appliance-${id}`}
+                  hasTVPreferredFocus={i === 0}
+                  accessibilityLabel={
+                    `${applianceLabel[id]}, ${hoursFor(id)} hours` +
+                    (r.isCritical ? ', essential service' : '') +
+                    (wasReduced ? ', reduced below full' : '')
+                  }
+                  onFocus={() => setFocus(id)}
+                  onPress={() => {
+                    setEditingId(id);
+                    setPage('editAppliance');
+                  }}
+                  style={[flowStyles.rowSlot, {top: dest[i].top, height: FLOW_ROW_H}]}>
+                  <FocusTile
+                    focused={focus === id}
+                    style={[flowStyles.row, focus === id && flowStyles.rowFocused]}>
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        flowStyles.rowTint,
+                        {backgroundColor: r.isCritical ? flow.accent : flow.flexible, opacity: r.isCritical ? 0.1 : 0.06},
+                      ]}
+                    />
+                    <View style={flowStyles.rowIconSlot}>
+                      <Icon name={id as IconName} size={11} color={flow.ink} />
+                    </View>
+                    <View style={flowStyles.rowText}>
+                      <View style={flowStyles.rowNameLine}>
+                        <Text style={flowStyles.rowName}>{applianceLabel[id]}</Text>
+                        {r.isCritical && (
+                          <Text
+                            testID={`badge-essential-${id}`}
+                            style={[
+                              flowStyles.rowBadge,
+                              {color: wasReduced ? flow.coral : flow.accent},
+                            ]}>
+                            {wasReduced ? '⚠ essential' : '✓ essential'}
+                          </Text>
+                        )}
+                      </View>
+                      {showTag && (
+                        <Text style={flowStyles.rowTag} numberOfLines={1}>
+                          {id === 'fridge'
+                            ? 'Runtime prioritized, not a safety guarantee'
+                            : 'Keeps connectivity up'}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={flowStyles.rowStats}>
+                      <Text style={flowStyles.rowHrs}>{hoursFor(id)}h</Text>
+                      <Text style={flowStyles.rowWh}>{formatWh(r.wh)} Wh</Text>
+                    </View>
+                  </FocusTile>
+                </Pressable>
+              );
+            })}
+          </TVFocusGuideView>
+        </View>
+
+        <View style={flowStyles.shelf}>
+          {feasible === false ? (
             <Pressable
               testID="tile-alternatives"
               accessibilityLabel="View conflict and alternatives"
               onFocus={() => setFocus('alternatives')}
-              onPress={() => setPage('alternatives')}
-              style={[styles.actionCard, focus === 'alternatives' && styles.cardFocused]}>
-              <Text style={styles.actionIcon}>⚠️</Text>
-              <Text style={styles.applianceName}>Why, and how to fix it</Text>
+              onPress={() => setPage('alternatives')}>
+              <FocusTile focused={focus === 'alternatives'} style={flowStyles.ctaPrimary}>
+                <Icon name="warning" size={13} color={flow.accentInk} />
+                <View style={flowStyles.ctaText}>
+                  <Text style={flowStyles.ctaTitle}>Why this doesn&#39;t fit</Text>
+                  <Text style={flowStyles.ctaSub} numberOfLines={1}>
+                    {plan?.alternatives.length ?? 0} verified way
+                    {plan?.alternatives.length === 1 ? '' : 's'} to fix it tonight
+                  </Text>
+                </View>
+              </FocusTile>
             </Pressable>
+          ) : (
+            null
           )}
-          <Pressable
-            testID="tile-reset"
-            accessibilityLabel="Reset to default plan"
-            onFocus={() => setFocus('reset')}
-            onPress={guard(resetToDefault)}
-            style={[styles.actionCard, focus === 'reset' && styles.cardFocused]}>
-            <Text style={styles.actionIcon}>↺</Text>
-            <Text style={styles.applianceName}>Reset to default</Text>
-          </Pressable>
-        </TVFocusGuideView>
+          <TVFocusGuideView style={flowStyles.secondaryRow}>
+            <Pressable
+              testID="tile-battery"
+              accessibilityLabel={`Battery, ${usableWh} watt hours, ${maxW} watt limit`}
+              onFocus={() => setFocus('battery')}
+              onPress={() => setPage('editBattery')}>
+              <FocusTile
+                focused={focus === 'battery'}
+                style={[flowStyles.secondary, focus === 'battery' && flowStyles.secondaryFocused]}>
+                <Icon name="battery" size={15} color={flow.inkDim} />
+                <Text style={flowStyles.secondaryText} numberOfLines={1}>
+                  Battery  <Text style={flowStyles.secondaryFaint}>{usableWh} Wh, {maxW} W limit</Text>
+                </Text>
+              </FocusTile>
+            </Pressable>
+            <Pressable
+              testID="tile-reset"
+              accessibilityLabel="Reset to default plan"
+              onFocus={() => setFocus('reset')}
+              onPress={guard(resetToDefault)}>
+              <FocusTile
+                focused={focus === 'reset'}
+                style={[flowStyles.secondary, focus === 'reset' && flowStyles.secondaryFocused]}>
+                <Icon name="reset" size={15} color={flow.inkDim} />
+                <Text style={flowStyles.secondaryText} numberOfLines={1}>Reset to default</Text>
+              </FocusTile>
+            </Pressable>
+          </TVFocusGuideView>
+        </View>
 
-        <Text style={styles.footer}>{plan?.limits}</Text>
+        <Text style={flowStyles.footer}>{plan?.limits}</Text>
       </View>
     );
   }
 
   // ---------------- Appliance edit ----------------
+  // Same near-black / single-accent Sankey identity as the overview and
+  // alternatives screens. Uses flowStyles exclusively -- renderBatteryEdit
+  // just below still reads the old `styles` sheet and is deliberately
+  // untouched by this pass.
   function renderApplianceEdit() {
     if (!editingId) {
       return null;
@@ -378,168 +589,278 @@ export const App = () => {
     const info = applianceInfo?.[editingId];
     const hours = hoursFor(editingId);
     const windowLen = info ? new Set(info.allowed_hours).size : OUTAGE_HOURS;
+    const hoursRatio = windowLen > 0 ? clamp(hours / windowLen, 0, 1) : 0;
     const isCritical = criticalIds.has(editingId);
+    const showSafetyCaution = !isCritical && SAFETY_SENSITIVE_IDS.has(editingId);
     return (
-      <View style={styles.screen} testID="screen-edit-appliance">
-        <Text style={styles.title}>
-          {applianceIcon[editingId]} {applianceLabel[editingId]}
-          {isCritical ? '  ·  essential service' : ''}
-        </Text>
-        <Text style={styles.subtitle}>
-          {info ? `${info.low_w}-${info.high_w} W · available ${windowLen}h of this outage` : ''}
-        </Text>
-        <Text style={styles.paragraph} testID="essential-note">
-          {essentialNoteFor(editingId, isCritical)}
-        </Text>
-        {!isCritical && SAFETY_SENSITIVE_IDS.has(editingId) && (
-          <Text style={styles.safetyCaution} testID="safety-caution-edit">
-            {SAFETY_NOTE[editingId]}
-          </Text>
+      <View style={flowStyles.screen} testID="screen-edit-appliance">
+        <View style={flowStyles.editHeaderRow}>
+          <View style={flowStyles.editIconBox}>
+            <Icon name={editingId as IconName} size={32} color={flow.ink} />
+          </View>
+          <View style={flowStyles.editHeaderText}>
+            <View style={flowStyles.editTitleRow}>
+              <Text style={flowStyles.editTitle}>{applianceLabel[editingId]}</Text>
+              {isCritical && (
+                <View style={flowStyles.editEssentialPill}>
+                  <Text style={flowStyles.editEssentialPillText}>✓ Essential service</Text>
+                </View>
+              )}
+            </View>
+            <Text style={flowStyles.editSubtitle}>
+              {info ? `${info.low_w}-${info.high_w} W · available ${windowLen}h of this outage` : ''}
+            </Text>
+          </View>
+        </View>
+
+        <View style={flowStyles.editNoteBanner} testID="essential-note">
+          <Text style={flowStyles.editNoteText}>{essentialNoteFor(editingId, isCritical)}</Text>
+        </View>
+        {showSafetyCaution && (
+          <View style={flowStyles.altCautionBanner} testID="safety-caution-edit">
+            <Icon name="warning" size={14} color={flow.coral} />
+            <Text style={flowStyles.altCautionText}>{SAFETY_NOTE[editingId]}</Text>
+          </View>
         )}
         {renderStatusLine()}
-        <Text style={styles.bigValue} testID="appliance-hours-value">{hours}h required</Text>
-        <TVFocusGuideView style={styles.stepperRow} autoFocus>
+
+        <View style={flowStyles.editHeroWrap}>
+          <Text style={flowStyles.editHeroEyebrow}>Requested runtime</Text>
+          <Text style={flowStyles.editHeroNum} testID="appliance-hours-value">{hours}h required</Text>
+          <View style={flowStyles.editHeroTrack}>
+            <View style={[flowStyles.editHeroFill, {width: `${hoursRatio * 100}%`}]} />
+          </View>
+        </View>
+
+        <TVFocusGuideView style={flowStyles.editStepperRow} autoFocus>
           <Pressable
             testID="btn-hours-minus"
             hasTVPreferredFocus
             accessibilityLabel="Decrease by 1 hour"
             onFocus={() => setFocus('minus')}
             onPress={guard(() => setApplianceHours(editingId, hours - 1))}
-            style={[styles.stepperButton, focus === 'minus' && styles.cardFocused]}>
-            <Text style={styles.stepperButtonText}>− 1h</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'minus'}
+              style={[flowStyles.editStepperButton, focus === 'minus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>− 1h</Text>
+            </FocusTile>
           </Pressable>
           <Pressable
             testID="btn-hours-plus"
             accessibilityLabel="Increase by 1 hour"
             onFocus={() => setFocus('plus')}
             onPress={guard(() => setApplianceHours(editingId, hours + 1))}
-            style={[styles.stepperButton, focus === 'plus' && styles.cardFocused]}>
-            <Text style={styles.stepperButtonText}>+ 1h</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'plus'}
+              style={[flowStyles.editStepperButton, focus === 'plus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>+ 1h</Text>
+            </FocusTile>
           </Pressable>
           <Pressable
             testID="btn-hours-zero"
             accessibilityLabel="Turn off"
             onFocus={() => setFocus('zero')}
             onPress={guard(() => setApplianceHours(editingId, 0))}
-            style={[styles.stepperButton, focus === 'zero' && styles.cardFocused]}>
-            <Text style={styles.stepperButtonText}>Off</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'zero'}
+              style={[flowStyles.editStepperButton, focus === 'zero' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>Off</Text>
+            </FocusTile>
           </Pressable>
         </TVFocusGuideView>
-        <TVFocusGuideView style={styles.stepperRow}>
+
+        <TVFocusGuideView style={flowStyles.editToggleRow}>
           <Pressable
             testID="btn-toggle-essential"
             accessibilityLabel={isCritical ? 'Unmark as essential' : 'Mark as essential'}
             onFocus={() => setFocus('toggle-essential')}
-            onPress={guard(() => toggleEssential(editingId))}
-            style={[
-              styles.essentialToggle,
-              isCritical && styles.essentialToggleOn,
-              focus === 'toggle-essential' && styles.cardFocused,
-            ]}>
-            <Text style={styles.stepperButtonText}>
-              {isCritical ? 'Unmark as essential' : 'Mark as essential'}
-            </Text>
+            onPress={guard(() => toggleEssential(editingId))}>
+            <FocusTile
+              focused={focus === 'toggle-essential'}
+              style={[
+                flowStyles.editToggleButton,
+                isCritical && flowStyles.editToggleButtonOn,
+                focus === 'toggle-essential' && flowStyles.editToggleButtonFocused,
+              ]}>
+              <Text style={[flowStyles.editToggleText, isCritical && flowStyles.editToggleTextOn]}>
+                {isCritical ? 'Unmark as essential' : 'Mark as essential'}
+              </Text>
+            </FocusTile>
           </Pressable>
         </TVFocusGuideView>
+
         {plan && (
-          <Text
+          <View
             style={[
-              styles.livePreview,
-              {color: plan.requested.result.feasible ? colors.feasible : colors.infeasible},
+              flowStyles.editStatusPill,
+              {backgroundColor: plan.requested.result.feasible ? 'rgba(74,222,128,0.14)' : flow.coralSoft},
             ]}
             testID="appliance-edit-status">
-            Plan is now {plan.requested.result.feasible ? 'FEASIBLE' : 'INFEASIBLE'}
-          </Text>
+            <Text
+              style={[
+                flowStyles.editStatusText,
+                {color: plan.requested.result.feasible ? colors.feasible : flow.coral},
+              ]}>
+              Plan is now {plan.requested.result.feasible ? 'FEASIBLE' : 'INFEASIBLE'}
+            </Text>
+          </View>
         )}
-        <Text style={styles.footerHint}>Press Back to return to the overview</Text>
+        <Text style={flowStyles.altFooterHint}>Press Back to return to the overview</Text>
       </View>
     );
   }
 
   // ---------------- Battery edit ----------------
+  // Same near-black / single-accent Sankey identity as the overview,
+  // alternatives, and appliance-edit screens -- flowStyles only, reusing
+  // the same edit* keys the appliance-edit screen already established
+  // rather than adding new ones. The two progress bars are driven by this
+  // screen's own real, code-enforced editable range (setBattery's clamp
+  // bounds: 100-10000 Wh, 50-2000 W -- see setBattery above), not an
+  // invented scale.
   function renderBatteryEdit() {
+    const whRatio = clamp((usableWh - 100) / (10000 - 100), 0, 1);
+    const wRatio = clamp((maxW - 50) / (2000 - 50), 0, 1);
     return (
-      <View style={styles.screen} testID="screen-edit-battery">
-        <Text style={styles.title}>🔋 Battery</Text>
-        <Text style={styles.subtitle}>Usable capacity and output limit for this outage</Text>
+      <View style={flowStyles.screen} testID="screen-edit-battery">
+        <View style={flowStyles.editHeaderRow}>
+          <View style={flowStyles.editIconBox}>
+            <Icon name="battery" size={32} color={flow.ink} />
+          </View>
+          <View style={flowStyles.editHeaderText}>
+            <Text style={flowStyles.editTitle}>Battery</Text>
+            <Text style={flowStyles.editSubtitle}>Usable capacity and output limit for this outage</Text>
+          </View>
+        </View>
         {renderStatusLine()}
 
-        <Text style={styles.bigValue} testID="battery-wh-value">{usableWh} Wh</Text>
-        <TVFocusGuideView style={styles.stepperRow} autoFocus>
+        <View style={flowStyles.battHeroWrap}>
+          <Text style={flowStyles.editHeroEyebrow}>Usable capacity</Text>
+          <Text style={flowStyles.battHeroNum} testID="battery-wh-value">{formatWh(usableWh)} Wh</Text>
+          <View style={flowStyles.battHeroTrack}>
+            <View style={[flowStyles.battHeroFill, {width: `${whRatio * 100}%`}]} />
+          </View>
+        </View>
+        <TVFocusGuideView style={flowStyles.battStepperRow} autoFocus>
           <Pressable
             testID="btn-wh-minus"
             hasTVPreferredFocus
             accessibilityLabel="Decrease capacity by 100 watt hours"
             onFocus={() => setFocus('wh-minus')}
             onPress={guard(() => setBattery(usableWh - 100, maxW))}
-            style={[styles.stepperButton, focus === 'wh-minus' && styles.cardFocused]}>
-            <Text style={styles.stepperButtonText}>− 100 Wh</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'wh-minus'}
+              style={[flowStyles.editStepperButton, focus === 'wh-minus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>− 100 Wh</Text>
+            </FocusTile>
           </Pressable>
           <Pressable
             testID="btn-wh-plus"
             accessibilityLabel="Increase capacity by 100 watt hours"
             onFocus={() => setFocus('wh-plus')}
             onPress={guard(() => setBattery(usableWh + 100, maxW))}
-            style={[styles.stepperButton, focus === 'wh-plus' && styles.cardFocused]}>
-            <Text style={styles.stepperButtonText}>+ 100 Wh</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'wh-plus'}
+              style={[flowStyles.editStepperButton, focus === 'wh-plus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>+ 100 Wh</Text>
+            </FocusTile>
           </Pressable>
         </TVFocusGuideView>
 
-        <Text style={[styles.bigValue, {marginTop: spacing.lg}]} testID="battery-maxw-value">{maxW} W limit</Text>
-        <TVFocusGuideView style={styles.stepperRow}>
+        <View style={flowStyles.battHeroWrap}>
+          <Text style={flowStyles.editHeroEyebrow}>Output limit</Text>
+          <Text style={flowStyles.battHeroNum} testID="battery-maxw-value">{maxW} W limit</Text>
+          <View style={flowStyles.battHeroTrack}>
+            <View style={[flowStyles.battHeroFill, {width: `${wRatio * 100}%`}]} />
+          </View>
+        </View>
+        <TVFocusGuideView style={flowStyles.battStepperRow}>
           <Pressable
             testID="btn-w-minus"
             accessibilityLabel="Decrease output limit by 10 watts"
             onFocus={() => setFocus('w-minus')}
             onPress={guard(() => setBattery(usableWh, maxW - 10))}
-            style={[styles.stepperButton, focus === 'w-minus' && styles.cardFocused]}>
-            <Text style={styles.stepperButtonText}>− 10 W</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'w-minus'}
+              style={[flowStyles.editStepperButton, focus === 'w-minus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>− 10 W</Text>
+            </FocusTile>
           </Pressable>
           <Pressable
             testID="btn-w-plus"
             accessibilityLabel="Increase output limit by 10 watts"
             onFocus={() => setFocus('w-plus')}
             onPress={guard(() => setBattery(usableWh, maxW + 10))}
-            style={[styles.stepperButton, focus === 'w-plus' && styles.cardFocused]}>
-            <Text style={styles.stepperButtonText}>+ 10 W</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'w-plus'}
+              style={[flowStyles.editStepperButton, focus === 'w-plus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>+ 10 W</Text>
+            </FocusTile>
           </Pressable>
         </TVFocusGuideView>
 
         {plan && (
-          <Text
+          <View
             style={[
-              styles.livePreview,
-              {color: plan.requested.result.feasible ? colors.feasible : colors.infeasible},
+              flowStyles.editStatusPill,
+              {marginTop: spacing.xs},
+              {backgroundColor: plan.requested.result.feasible ? 'rgba(74,222,128,0.14)' : flow.coralSoft},
             ]}>
-            Plan is now {plan.requested.result.feasible ? 'FEASIBLE' : 'INFEASIBLE'}
-          </Text>
+            <Text
+              style={[
+                flowStyles.editStatusText,
+                {color: plan.requested.result.feasible ? colors.feasible : flow.coral},
+              ]}>
+              Plan is now {plan.requested.result.feasible ? 'FEASIBLE' : 'INFEASIBLE'}
+            </Text>
+          </View>
         )}
-        <Text style={styles.footerHint}>Press Back to return to the overview</Text>
+        <Text style={flowStyles.altFooterHint}>Press Back to return to the overview</Text>
       </View>
     );
   }
 
   // ---------------- Conflict + alternatives ----------------
+  // Same near-black / single-accent Sankey identity as the overview. Each
+  // card's energy bar and per-appliance change rows are derived from the
+  // same verified repair.result/repair.changed the engine already returned
+  // -- nothing here is computed or estimated client-side.
   function renderAlternatives() {
     if (!plan) {
       return null;
     }
     return (
-      <ScrollView ref={alternativesScrollRef} style={styles.screen} testID="screen-alternatives">
-        <Text style={styles.title}>Why this doesn't fit</Text>
-        <Text style={styles.paragraph}>{plan.requested.explanation}</Text>
+      <ScrollView ref={alternativesScrollRef} style={flowStyles.screen} testID="screen-alternatives">
+        <Text style={flowStyles.altTitle}>Why this doesn't fit</Text>
+        <View style={flowStyles.altExplainBanner}>
+          <View style={flowStyles.altExplainIcon}>
+            <Icon name="warning" size={15} color={flow.coral} />
+          </View>
+          <Text style={flowStyles.altExplainText}>{plan.requested.explanation}</Text>
+        </View>
         {renderStatusLine()}
 
-        <Text style={styles.sectionTitle}>Pick a verified alternative</Text>
+        <Text style={flowStyles.altSectionLabel}>Pick a verified alternative</Text>
         {plan.alternatives.length === 0 && (
-          <Text style={styles.paragraph} testID="no-alternatives">
+          <Text style={flowStyles.altEmpty} testID="no-alternatives">
             No automatic fix was found by changing one or two appliances. Try reducing more
             requirements yourself, or raise the battery capacity.
           </Text>
         )}
-        <TVFocusGuideView style={styles.alternativesRow} autoFocus>
+        <TVFocusGuideView style={flowStyles.altRow} autoFocus>
           {plan.alternatives.map((alt, i) => {
             const protects = alt.tier === 'protects_essentials';
+            const altEnergy = alt.result.energy_wh ?? 0;
+            const altRatio = budgetWh > 0 ? clamp(altEnergy / budgetWh, 0, 1) : 0;
+            const isFocused = focus === 'alt-' + alt.id;
+            const caution = alternativeSafetyCaution(alt.changed.map(c => c.id));
             return (
               <Pressable
                 key={alt.id}
@@ -548,51 +869,95 @@ export const App = () => {
                 accessibilityLabel={`Alternative ${alt.id}: ${alt.summary}`}
                 onFocus={() => setFocus('alt-' + alt.id)}
                 onPress={guard(() => applyAlternative(alt))}
-                style={[styles.altCard, focus === 'alt-' + alt.id && styles.cardFocused]}>
-                <View
-                  style={[
-                    styles.tierBadge,
-                    {backgroundColor: protects ? colors.feasibleDim : colors.infeasibleDim},
-                  ]}
-                  testID={`alt-tier-${alt.id}`}>
-                  <Text style={[styles.tierBadgeText, {color: protects ? colors.feasible : colors.infeasible}]}>
-                    {protects ? '✓ Protects essentials' : '⚠ Requires compromise'}
-                  </Text>
-                </View>
-                <Text style={styles.altTitle}>Alternative {alt.id}</Text>
-                <Text style={styles.altChange}>Reduces: {alt.label}</Text>
-                <Text style={styles.altStaysPowered}>
-                  Stays as requested: {alt.stays_powered.map(id => applianceLabel[id] ?? id).join(', ')}
-                </Text>
-                <Text style={styles.altSummary}>{alt.summary}</Text>
-                <Text style={styles.altStat}>
-                  {alt.result.energy_wh} Wh used · {alt.result.remaining_wh} Wh left · peak{' '}
-                  {alt.result.peak_w} W
-                </Text>
-                <Text
-                  style={[
-                    styles.altVerified,
-                    {color: alt.independent_verification?.valid ? colors.feasible : colors.infeasible},
-                  ]}>
-                  {alt.independent_verification?.valid
-                    ? '✓ Independently verified'
-                    : '✗ verification failed'}
-                </Text>
-                {(() => {
-                  const caution = alternativeSafetyCaution(alt.changed.map(c => c.id));
-                  return caution ? (
-                    <Text style={styles.safetyCaution} testID={`alt-safety-caution-${alt.id}`}>
-                      {caution}
+                style={flowStyles.altSlot}>
+                <FocusTile
+                  focused={isFocused}
+                  style={[flowStyles.altCard, isFocused && flowStyles.altCardFocused]}>
+                  <View
+                    style={[
+                      flowStyles.altTierBadge,
+                      {backgroundColor: protects ? 'rgba(255,138,61,0.16)' : flow.coralSoft},
+                    ]}
+                    testID={`alt-tier-${alt.id}`}>
+                    <Text style={[flowStyles.altTierBadgeText, {color: protects ? flow.accent : flow.coral}]}>
+                      {protects ? '✓ Protects essentials' : '⚠ Requires compromise'}
                     </Text>
-                  ) : null;
-                })()}
-                <Text style={styles.altApply}>Select to apply</Text>
+                  </View>
+                  <Text style={flowStyles.altCardTitle}>Alternative {alt.id}</Text>
+                  <Text style={flowStyles.altChangeHeadline}>Reduces: {alt.label}</Text>
+                  <Text style={flowStyles.altCardSummary}>{alt.summary}</Text>
+
+                  <View style={flowStyles.altEnergyWrap}>
+                    <View style={flowStyles.altEnergyTrack}>
+                      <View style={[flowStyles.altEnergyFill, {width: `${altRatio * 100}%`}]} />
+                    </View>
+                    <Text style={flowStyles.altEnergyStats}>
+                      <Text style={flowStyles.altEnergyStatsStrong}>{formatWh(altEnergy)} Wh</Text> used
+                      {'  ·  '}
+                      <Text style={flowStyles.altEnergyStatsStrong}>{formatWh(alt.result.remaining_wh ?? 0)} Wh</Text>{' '}
+                      left
+                      {'  ·  '}peak <Text style={flowStyles.altEnergyStatsStrong}>{alt.result.peak_w} W</Text>
+                    </Text>
+                  </View>
+
+                  {/* With exactly one changed appliance, the headline above
+                      ("Reduces: fridge: 12h -> 8h") already says everything
+                      this per-row list would -- skip the duplicate row and
+                      keep it only where it adds real value: breaking a
+                      multi-appliance change apart for easier reading. */}
+                  {alt.changed.length > 1 && (
+                    <View style={flowStyles.altChangesWrap}>
+                      {alt.changed.map(c => (
+                        <View key={c.id} style={flowStyles.altChangeRow}>
+                          <View style={flowStyles.rowIconSlot}>
+                            <Icon name={(applianceIconName[c.id] ?? c.id) as IconName} size={11} color={flow.ink} />
+                          </View>
+                          <Text style={flowStyles.altChangeLabel}>{applianceLabel[c.id] ?? c.id}</Text>
+                          <Text style={flowStyles.altChangeHours}>
+                            {c.from_hours}h <Text style={flowStyles.altChangeHoursNew}>→ {c.to_hours}h</Text>
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text style={flowStyles.altStaysText}>
+                    Stays as requested:{' '}
+                    {alt.stays_powered.map((id, idx) => (
+                      <Text key={id} style={SAFETY_SENSITIVE_IDS.has(id) ? flowStyles.altStaysStrong : undefined}>
+                        {applianceLabel[id] ?? id}
+                        {idx < alt.stays_powered.length - 1 ? ', ' : ''}
+                      </Text>
+                    ))}
+                  </Text>
+
+                  {caution && (
+                    <View style={flowStyles.altCautionBanner} testID={`alt-safety-caution-${alt.id}`}>
+                      <Icon name="warning" size={14} color={flow.coral} />
+                      <Text style={flowStyles.altCautionText}>{caution}</Text>
+                    </View>
+                  )}
+
+                  <Text
+                    style={[
+                      flowStyles.altVerifiedText,
+                      {color: alt.independent_verification?.valid ? colors.feasible : flow.coral},
+                    ]}>
+                    {alt.independent_verification?.valid
+                      ? '✓ Independently verified'
+                      : '✗ verification failed'}
+                  </Text>
+
+                  <View style={flowStyles.altApplyRow}>
+                    <Text style={flowStyles.altApplyText}>Select to apply</Text>
+                  </View>
+                </FocusTile>
               </Pressable>
             );
           })}
         </TVFocusGuideView>
-        <Text style={styles.footer}>{plan.limits}</Text>
-        <Text style={styles.footerHint}>Press Back to return to the overview</Text>
+        <Text style={flowStyles.footer}>{plan.limits}</Text>
+        <Text style={flowStyles.altFooterHint}>Press Back to return to the overview</Text>
       </ScrollView>
     );
   }
@@ -610,91 +975,229 @@ export const App = () => {
 };
 
 const styles = StyleSheet.create({
-  screen: {flex: 1, backgroundColor: colors.bg, padding: spacing.lg},
-  headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  title: {fontSize: type.title, color: colors.text, fontWeight: 'bold'},
-  subtitle: {fontSize: type.h2, color: colors.accent, marginTop: spacing.xs},
-  statusBadge: {paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: 10},
-  statusText: {fontSize: type.h2, fontWeight: 'bold'},
-  energyPanel: {marginTop: spacing.md, marginBottom: spacing.sm},
-  energyLabelRow: {flexDirection: 'row', justifyContent: 'space-between'},
-  energyLabel: {fontSize: type.body, color: colors.textDim},
-  energyValue: {fontSize: type.body, color: colors.text},
+  screen: {flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xxl, paddingTop: spacing.lg, paddingBottom: spacing.md},
+  headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
+  wordmark: {fontSize: type.title, color: colors.text, fontWeight: '800', letterSpacing: -0.5},
+  title: {fontSize: type.h1, color: colors.text, fontWeight: '700'},
+  subtitle: {fontSize: type.body, color: colors.accent, marginTop: spacing.xs},
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  statusDot: {width: 9, height: 9, borderRadius: 5, marginRight: spacing.xs},
+  statusText: {fontSize: type.h2, fontWeight: '800', letterSpacing: 0.5},
+
+  heroPanel: {
+    flexDirection: 'row',
+    backgroundColor: colors.bgHero,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  heroMain: {flex: 1},
+  heroLabel: {fontSize: type.label, color: colors.textDim, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: '700'},
+  heroNumberRow: {flexDirection: 'row', alignItems: 'flex-end', marginTop: 2},
+  heroNumber: {fontSize: 46, fontWeight: '800', lineHeight: 46},
+  heroNumberUnit: {fontSize: type.small, color: colors.textDim, marginBottom: 5, marginLeft: spacing.xs},
   energyTrack: {
-    height: 18,
-    borderRadius: 9,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: colors.energyTrack,
     marginTop: spacing.xs,
     overflow: 'hidden',
+    justifyContent: 'center',
   },
-  energyFill: {height: '100%', borderRadius: 9},
+  energyFill: {height: '100%', borderRadius: 6},
+  energyTrackMarker: {position: 'absolute', right: 0, top: 0, bottom: 0, width: 2, backgroundColor: colors.border},
+  heroStat: {
+    width: 150,
+    marginLeft: spacing.md,
+    paddingLeft: spacing.md,
+    borderLeftWidth: 1,
+    borderLeftColor: colors.divider,
+    justifyContent: 'center',
+  },
+  heroStatLabel: {fontSize: type.label, color: colors.textDim, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: '700'},
+  heroStatValue: {fontSize: 30, fontWeight: '800', marginTop: 2},
+  heroStatUnit: {fontSize: type.body, fontWeight: '600'},
+  heroStatCaption: {fontSize: type.caption, color: colors.textFaint, marginTop: 2},
+
   errorText: {color: colors.infeasible, fontSize: type.small, marginTop: spacing.xs},
   loadingText: {color: colors.textFaint, fontSize: type.small, marginTop: spacing.xs},
-  applianceRow: {flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.sm},
-  actionRow: {flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xs},
+
+  sectionLabel: {
+    fontSize: type.label,
+    color: colors.textDim,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+
+  applianceRow: {flexDirection: 'row'},
+  applianceSlot: {flex: 1, marginHorizontal: spacing.xs / 2, height: 148},
   applianceCard: {
-    width: 128,
-    height: 104,
-    margin: spacing.xs,
+    flex: 1,
     padding: spacing.xs,
     backgroundColor: colors.bgCard,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: colors.bgCard,
-    borderRadius: 12,
-    justifyContent: 'center',
+    borderRadius: radius.md,
+    justifyContent: 'flex-start',
   },
-  applianceCardCritical: {borderColor: colors.accentDim},
-  essentialBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 6,
-    fontSize: 10,
-    color: colors.accent,
-    fontWeight: '700',
+  applianceCardCritical: {borderColor: colors.accentSoft, backgroundColor: colors.bgCardCritical},
+  essentialPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    marginBottom: 2,
   },
+  essentialPillText: {fontSize: 10, fontWeight: '800'},
+  essentialPillSpacer: {height: 10 + 2 * 2 + 2},
+
+  actionRow: {flexDirection: 'row', marginTop: spacing.xs},
+  actionSlot: {flex: 1, marginHorizontal: spacing.xs / 2, height: 68},
   actionCard: {
-    width: 264,
-    height: 76,
-    margin: spacing.xs,
-    padding: spacing.sm,
+    flex: 1,
+    paddingHorizontal: spacing.md,
     backgroundColor: colors.bgPanel,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: colors.bgPanel,
-    borderRadius: 12,
-    justifyContent: 'center',
+    borderRadius: radius.md,
     alignItems: 'center',
     flexDirection: 'row',
   },
+  actionCardAlert: {borderColor: colors.infeasibleDim},
+  actionTextGroup: {marginLeft: spacing.sm, flexShrink: 1},
+  actionTitle: {fontSize: type.body, color: colors.text, fontWeight: '700'},
+  actionValue: {fontSize: type.small, color: colors.textDim, marginTop: 2},
+
   cardFocused: {borderColor: colors.borderFocused, backgroundColor: colors.bgCardFocused},
-  applianceIcon: {fontSize: 24, marginBottom: 2},
-  actionIcon: {fontSize: 26, marginRight: spacing.sm, color: colors.text},
-  applianceName: {fontSize: 14, color: colors.text, fontWeight: '600'},
-  applianceHours: {fontSize: type.h2, color: colors.accent, fontWeight: 'bold'},
-  applianceWatts: {fontSize: 12, color: colors.textFaint},
-  actionValue: {fontSize: 13, color: colors.accent, marginTop: 2},
-  footer: {fontSize: type.small, color: colors.textFaint, marginTop: spacing.lg},
-  footerHint: {fontSize: type.small, color: colors.textFaint, marginTop: spacing.lg, marginBottom: spacing.xl},
-  bigValue: {fontSize: 56, color: colors.text, fontWeight: 'bold', marginTop: spacing.md},
-  stepperRow: {flexDirection: 'row', marginTop: spacing.md},
-  stepperButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.bgCard,
-    borderWidth: 3,
-    borderColor: colors.bgCard,
-    borderRadius: 14,
+
+  applianceName: {fontSize: type.small, color: colors.text, fontWeight: '700', marginTop: 2},
+  applianceHours: {fontSize: type.h2, color: colors.accent, fontWeight: '800', marginTop: 0},
+  applianceWatts: {fontSize: type.caption, color: colors.textFaint, marginTop: 2},
+
+  miniTrack: {height: 5, borderRadius: 2.5, backgroundColor: colors.energyTrack, marginTop: 3, overflow: 'hidden'},
+  miniFill: {height: '100%', borderRadius: 2.5, backgroundColor: colors.accent},
+  miniTrackWide: {height: 8, borderRadius: 4, backgroundColor: colors.energyTrack, marginTop: spacing.xs, overflow: 'hidden', width: '100%'},
+  miniFillWide: {height: '100%', borderRadius: 5, backgroundColor: colors.accent},
+
+  footer: {fontSize: type.caption, color: colors.textFaint, marginTop: spacing.sm},
+  footerHint: {fontSize: type.caption, color: colors.textFaint, marginTop: spacing.sm, marginBottom: spacing.md},
+
+  editHeaderRow: {flexDirection: 'row', alignItems: 'center'},
+  editHeaderIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgPanel,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: spacing.sm,
   },
-  stepperButtonText: {fontSize: type.h2, color: colors.text, fontWeight: 'bold'},
-  essentialToggle: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.bgCard,
-    borderWidth: 3,
-    borderColor: colors.bgCard,
-    borderRadius: 14,
+  editHeaderText: {flexShrink: 1},
+
+  infoBanner: {
+    backgroundColor: colors.bgPanel,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
   },
-  essentialToggleOn: {borderColor: colors.accentDim},
+  infoBannerText: {fontSize: type.small, color: colors.textDim, lineHeight: 22},
+
+  cautionBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.infeasibleDim,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  cautionBannerText: {
+    flex: 1,
+    fontSize: type.small,
+    color: colors.infeasible,
+    lineHeight: 20,
+    fontWeight: '600',
+    marginLeft: spacing.sm,
+  },
+
+  bigValue: {fontSize: 44, color: colors.text, fontWeight: '800', marginTop: spacing.sm},
+
+  stepperRow: {flexDirection: 'row', marginTop: spacing.sm},
+  stepperSlot: {marginRight: spacing.sm},
+  stepperButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    minWidth: 118,
+    alignItems: 'center',
+    backgroundColor: colors.bgCard,
+    borderWidth: 2,
+    borderColor: colors.bgCard,
+    borderRadius: radius.md,
+  },
+  stepperButtonText: {fontSize: type.h2, color: colors.text, fontWeight: '700'},
+
+  toggleSlot: {marginRight: spacing.sm},
+  essentialToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.bgCard,
+    borderWidth: 2,
+    borderColor: colors.bgCard,
+    borderRadius: radius.md,
+  },
+  essentialToggleOn: {borderColor: colors.accentSoft, backgroundColor: colors.bgCardCritical},
+
+  inlineStatus: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    marginTop: spacing.sm,
+  },
+  inlineStatusText: {fontSize: type.h2, fontWeight: '800'},
+
+  paragraph: {fontSize: type.body, color: colors.textDim, lineHeight: 29, marginTop: spacing.sm, marginBottom: spacing.sm},
+
+  alternativesRow: {flexDirection: 'row'},
+  altSlot: {flex: 1, marginHorizontal: spacing.xs},
+  altCard: {
+    padding: spacing.md,
+    backgroundColor: colors.bgCard,
+    borderWidth: 2,
+    borderColor: colors.bgCard,
+    borderRadius: radius.lg,
+  },
+  tierBadge: {alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill},
+  tierBadgeText: {fontSize: 12, fontWeight: '800'},
+  altTitle: {fontSize: type.h2, color: colors.text, fontWeight: '800', marginTop: spacing.xs},
+  altChange: {fontSize: type.body, color: colors.accent, marginTop: 2, fontWeight: '700'},
+  altProtectedWrap: {marginTop: spacing.xs, backgroundColor: colors.bgPanel, borderRadius: radius.sm, padding: spacing.xs},
+  altProtectedLabel: {fontSize: type.caption, color: colors.textDim, lineHeight: 18},
+  altSummary: {fontSize: type.caption, color: colors.textDim, lineHeight: 18, marginTop: spacing.xs},
+  altStatRow: {marginTop: spacing.xs},
+  altStatBarWrap: {width: '100%'},
+  altStat: {fontSize: type.caption, color: colors.textFaint, marginTop: 3},
+  altVerified: {fontSize: type.caption, marginTop: spacing.xs, fontWeight: '700'},
+  altApplyRow: {
+    marginTop: spacing.xs,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  altApply: {fontSize: type.caption, color: colors.textDim, fontWeight: '600'},
   safetyCaution: {
     fontSize: type.small,
     color: colors.infeasible,
@@ -702,26 +1205,310 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     fontWeight: '600',
   },
-  livePreview: {fontSize: type.h2, marginTop: spacing.lg, fontWeight: 'bold'},
-  paragraph: {fontSize: type.body, color: colors.textDim, lineHeight: 29, marginTop: spacing.sm, marginBottom: spacing.sm},
-  sectionTitle: {fontSize: type.h2, color: colors.accent, marginTop: spacing.md, marginBottom: spacing.sm},
-  alternativesRow: {flexDirection: 'row', flexWrap: 'wrap'},
-  altCard: {
-    width: 440,
-    padding: spacing.md,
-    margin: spacing.xs,
-    backgroundColor: colors.bgCard,
-    borderWidth: 3,
-    borderColor: colors.bgCard,
-    borderRadius: 14,
+});
+
+// Styles for the overview's energy-flow redesign only -- kept separate
+// from `styles` above for the same reason `flow` is kept separate from
+// `colors` in theme.ts (see the comment there).
+const flowStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: flow.bg,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
-  tierBadge: {alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 8},
-  tierBadgeText: {fontSize: 13, fontWeight: '700'},
-  altTitle: {fontSize: type.h2, color: colors.text, fontWeight: 'bold', marginTop: spacing.xs},
-  altChange: {fontSize: type.body, color: colors.accent, marginTop: spacing.xs},
-  altStaysPowered: {fontSize: type.small, color: colors.textDim, marginTop: 2},
-  altSummary: {fontSize: type.small, color: colors.textDim, lineHeight: 22, marginTop: spacing.sm},
-  altStat: {fontSize: type.small, color: colors.textDim, marginTop: spacing.sm},
-  altVerified: {fontSize: type.small, marginTop: spacing.sm, fontWeight: '600'},
-  altApply: {fontSize: type.small, color: colors.textDim, marginTop: spacing.sm},
+  topbar: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
+  word: {fontSize: type.title, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
+  topright: {alignItems: 'flex-end'},
+  statusRow: {flexDirection: 'row', alignItems: 'center'},
+  statusDot: {width: 8, height: 8, borderRadius: 4, marginRight: spacing.xs},
+  statusWord: {fontSize: type.h2, fontWeight: '800', letterSpacing: 0.4},
+  legend: {flexDirection: 'row', marginTop: spacing.xs},
+  legendItem: {flexDirection: 'row', alignItems: 'center', marginLeft: spacing.md},
+  legendDot: {width: 6, height: 6, borderRadius: 3, marginRight: 6},
+  legendText: {fontSize: type.caption, color: flow.inkFaint},
+
+  hero: {marginTop: spacing.sm, maxWidth: 560},
+  heroEyebrow: {fontSize: type.small, color: flow.inkFaint},
+  heroNum: {fontSize: 52, fontWeight: '800', color: flow.ink, marginTop: 2, letterSpacing: -0.5},
+  heroSub: {fontSize: type.small, color: flow.inkDim, marginTop: 4, lineHeight: 19},
+  heroSubStrong: {color: flow.ink, fontWeight: '700'},
+
+  flowZone: {position: 'relative', marginTop: spacing.sm, height: FLOW_TOTAL_H},
+  capsule: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: FLOW_CAPSULE_W,
+    height: FLOW_TOTAL_H,
+    borderRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  capacityTick: {position: 'absolute', left: FLOW_CAPSULE_W - 3, width: FLOW_CAPSULE_W + 10, height: 2, backgroundColor: flow.ink},
+  capacityLabelWrap: {position: 'absolute', left: FLOW_CAPSULE_W + 10, width: 150},
+  capacityLabel: {fontSize: 10.5, color: flow.inkDim, backgroundColor: flow.bg},
+  capacityOver: {fontSize: 10, color: flow.coral, backgroundColor: flow.bg, marginTop: 1},
+
+  ribbons: {position: 'absolute', left: FLOW_CAPSULE_W + 24, top: 0, width: FLOW_RIBBON_W, height: FLOW_TOTAL_H},
+
+  rows: {position: 'absolute', left: FLOW_CAPSULE_W + 24 + FLOW_RIBBON_W, right: 0, top: 0, height: FLOW_TOTAL_H},
+  rowSlot: {position: 'absolute', left: 0, right: 0},
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    backgroundColor: flow.surface,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: flow.line,
+    paddingHorizontal: spacing.xs,
+  },
+  rowFocused: {borderColor: flow.accent},
+  rowTint: {position: 'absolute', left: 0, top: 0, bottom: 0, right: '55%'},
+  rowIconSlot: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    backgroundColor: flow.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  rowText: {flex: 1, minWidth: 0},
+  rowNameLine: {flexDirection: 'row', alignItems: 'center'},
+  rowName: {fontSize: 12.5, fontWeight: '700', color: flow.ink},
+  rowBadge: {fontSize: 8.5, fontWeight: '800', marginLeft: 5},
+  rowTag: {fontSize: 9, color: flow.inkDim, marginTop: 0},
+  rowStats: {alignItems: 'flex-end', marginLeft: 'auto', paddingLeft: spacing.xs},
+  rowHrs: {fontSize: 12.5, fontWeight: '700', color: flow.ink},
+  rowWh: {fontSize: 8.5, color: flow.inkFaint, marginTop: 0},
+
+  shelf: {marginTop: spacing.xs},
+  ctaPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: flow.accent,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  ctaText: {marginLeft: spacing.xs, flex: 1},
+  ctaTitle: {fontSize: type.small, fontWeight: '800', color: flow.accentInk},
+  ctaSub: {fontSize: 11, color: flow.accentInk, opacity: 0.72, marginTop: 1},
+
+  secondaryRow: {flexDirection: 'row', marginTop: spacing.xs},
+  secondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: spacing.lg,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  secondaryFocused: {borderColor: flow.accent, backgroundColor: flow.surface},
+  secondaryText: {fontSize: type.small, color: flow.inkDim, marginLeft: spacing.xs, fontWeight: '600'},
+  secondaryFaint: {color: flow.inkFaint, fontWeight: '400', fontSize: type.caption},
+
+  footer: {fontSize: type.caption, color: flow.inkFaint, marginTop: spacing.xs},
+
+  // ---- Alternatives screen: same near-black / single-accent system as
+  // the overview, so the two screens read as one product rather than a
+  // restyled original plus a leftover default-theme screen. ----
+  altTitle: {fontSize: type.h1, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
+  altExplainBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: flow.line,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  altExplainIcon: {marginTop: 2, marginRight: spacing.xs},
+  altExplainText: {flex: 1, fontSize: type.small, color: flow.inkDim, lineHeight: 19},
+
+  altSectionLabel: {
+    fontSize: type.label,
+    color: flow.inkFaint,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginTop: spacing.xs,
+    marginBottom: 4,
+  },
+  altEmpty: {fontSize: type.small, color: flow.inkDim, lineHeight: 20},
+
+  altRow: {flexDirection: 'row'},
+  altSlot: {flex: 1, marginHorizontal: spacing.xs},
+  altCard: {
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    padding: spacing.sm,
+  },
+  altCardFocused: {borderColor: flow.accent},
+
+  altTierBadge: {alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill},
+  altTierBadgeText: {fontSize: 12, fontWeight: '800'},
+  altCardTitle: {fontSize: type.h1, fontWeight: '800', color: flow.ink, marginTop: 4},
+  altChangeHeadline: {fontSize: type.body, color: flow.accent, fontWeight: '700', marginTop: 1},
+  altCardSummary: {fontSize: type.caption, color: flow.inkDim, lineHeight: 16, marginTop: 4},
+
+  altEnergyWrap: {marginTop: spacing.xs},
+  altEnergyTrack: {height: 10, borderRadius: 5, backgroundColor: flow.line, overflow: 'hidden'},
+  altEnergyFill: {height: '100%', borderRadius: 5, backgroundColor: flow.accent},
+  altEnergyStats: {fontSize: 11, color: flow.inkFaint, marginTop: 3},
+  altEnergyStatsStrong: {color: flow.ink, fontWeight: '700'},
+
+  altChangesWrap: {marginTop: 4},
+  altChangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: flow.line,
+  },
+  altChangeLabel: {flex: 1, fontSize: type.small, color: flow.ink, fontWeight: '600', marginLeft: 6},
+  altChangeHours: {fontSize: type.small, color: flow.inkDim, fontWeight: '600'},
+  altChangeHoursNew: {color: flow.ink, fontWeight: '800'},
+
+  altStaysText: {fontSize: type.caption, color: flow.inkFaint, lineHeight: 15, marginTop: 4},
+  altStaysStrong: {color: flow.accent, fontWeight: '700'},
+
+  altCautionBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: flow.coralSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    marginTop: 4,
+  },
+  altCautionText: {flex: 1, fontSize: 11.5, color: flow.coral, fontWeight: '600', marginLeft: 6, lineHeight: 15},
+
+  altVerifiedText: {fontSize: type.caption, fontWeight: '700', marginTop: 4},
+
+  altApplyRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: flow.line,
+  },
+  altApplyText: {fontSize: type.caption, color: flow.inkDim, fontWeight: '700'},
+
+  altFooterHint: {fontSize: type.caption, color: flow.inkFaint, marginTop: 4, marginBottom: spacing.sm},
+
+  // ---- Appliance-edit screen: same near-black / single-accent system as
+  // the overview and alternatives screens. Kept fully separate from the
+  // `styles` sheet below -- renderBatteryEdit still reads `styles` and is
+  // intentionally untouched by this pass. ----
+  editHeaderRow: {flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm},
+  editIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
+    backgroundColor: flow.surface,
+    borderWidth: 1,
+    borderColor: flow.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  editHeaderText: {flex: 1},
+  editTitleRow: {flexDirection: 'row', alignItems: 'center'},
+  editTitle: {fontSize: type.title, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
+  editEssentialPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,138,61,0.16)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    marginLeft: spacing.sm,
+  },
+  editEssentialPillText: {fontSize: 12, fontWeight: '800', color: flow.accent},
+  editSubtitle: {fontSize: type.small, color: flow.inkDim, marginTop: 2},
+
+  editNoteBanner: {
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: flow.line,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  editNoteText: {fontSize: type.small, color: flow.inkDim, lineHeight: 19},
+
+  editHeroWrap: {marginTop: spacing.md},
+  editHeroEyebrow: {
+    fontSize: type.label,
+    color: flow.inkFaint,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  editHeroNum: {fontSize: 64, fontWeight: '800', color: flow.ink, marginTop: 4, letterSpacing: -1},
+  editHeroTrack: {height: 10, borderRadius: 5, backgroundColor: flow.line, overflow: 'hidden', marginTop: spacing.sm},
+  editHeroFill: {height: '100%', borderRadius: 5, backgroundColor: flow.accent},
+
+  editStepperRow: {flexDirection: 'row', marginTop: spacing.md},
+  editStepperSlot: {marginRight: spacing.sm},
+  editStepperButton: {
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: flow.line,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  editStepperButtonFocused: {borderColor: flow.accent},
+  editStepperButtonText: {fontSize: type.body, fontWeight: '800', color: flow.ink},
+
+  editToggleRow: {marginTop: spacing.sm},
+  editToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 2,
+    borderColor: flow.line,
+    backgroundColor: flow.surface,
+  },
+  editToggleButtonOn: {backgroundColor: flow.accent, borderColor: flow.accent},
+  editToggleButtonFocused: {borderColor: flow.accent},
+  editToggleText: {fontSize: type.body, fontWeight: '800', color: flow.ink},
+  editToggleTextOn: {color: flow.accentInk},
+
+  editStatusPill: {
+    alignSelf: 'flex-start',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    marginTop: spacing.md,
+  },
+  editStatusText: {fontSize: type.caption, fontWeight: '800'},
+
+  // ---- Battery screen only: two metrics stacked on one screen, so each
+  // gets a more compact version of the appliance-edit hero treatment
+  // rather than reusing edit* at full size (which would make the single-
+  // metric appliance-edit screen's own proportions collateral damage).
+  battHeroWrap: {marginTop: spacing.xs},
+  battHeroNum: {fontSize: 44, fontWeight: '800', color: flow.ink, marginTop: 2, letterSpacing: -0.5},
+  battHeroTrack: {height: 8, borderRadius: 4, backgroundColor: flow.line, overflow: 'hidden', marginTop: 6},
+  battHeroFill: {height: '100%', borderRadius: 4, backgroundColor: flow.accent},
+  battStepperRow: {flexDirection: 'row', marginTop: spacing.xs},
 });
