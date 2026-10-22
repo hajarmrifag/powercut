@@ -350,8 +350,10 @@ describe('App', () => {
     await waitFor(() => screen.getByTestId('tile-appliance-fridge'));
     fireEvent.press(screen.getByTestId('tile-appliance-fridge'));
     await waitFor(() => screen.getByTestId('btn-toggle-essential'));
-    // Marked (default): food-safety rationale, not the generic copy.
-    expect(screen.getByText(/Marked essential: protects food safety/)).toBeTruthy();
+    // Marked (default): fridge-specific rationale, not the generic copy --
+    // and must not claim marking it essential guarantees food safety.
+    expect(screen.getByText(/PowerCut prioritizes the fridge's requested runtime/)).toBeTruthy();
+    expect(screen.getByText(/This does not guarantee food safety/)).toBeTruthy();
     expect(screen.queryByTestId('safety-caution-edit')).toBeNull();
 
     fireEvent.press(screen.getByTestId('btn-toggle-essential'));

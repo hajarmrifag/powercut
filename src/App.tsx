@@ -96,10 +96,10 @@ const SAFETY_NOTE: Record<string, string> = {
 function essentialNoteFor(id: string, isCritical: boolean): string {
   if (isCritical) {
     if (id === 'fridge') {
-      return 'Marked essential: protects food safety. The automatic repair search won\'t reduce it unless no other fix exists.';
+      return "Marked essential: PowerCut prioritizes the fridge's requested runtime. This does not guarantee food safety.";
     }
     if (id === 'router') {
-      return 'Marked essential: keeps emergency connectivity available. The automatic repair search won\'t reduce it unless no other fix exists.';
+      return "Marked essential: PowerCut prioritizes the router's requested runtime. This does not guarantee connectivity.";
     }
     return "Marked essential: the automatic repair search won't reduce it unless no other fix exists.";
   }
@@ -578,6 +578,10 @@ export const App = () => {
   }
 
   // ---------------- Appliance edit ----------------
+  // Same near-black / single-accent Sankey identity as the overview and
+  // alternatives screens. Uses flowStyles exclusively -- renderBatteryEdit
+  // just below still reads the old `styles` sheet and is deliberately
+  // untouched by this pass.
   function renderApplianceEdit() {
     if (!editingId) {
       return null;
@@ -589,48 +593,57 @@ export const App = () => {
     const isCritical = criticalIds.has(editingId);
     const showSafetyCaution = !isCritical && SAFETY_SENSITIVE_IDS.has(editingId);
     return (
-      <View style={styles.screen} testID="screen-edit-appliance">
-        <View style={styles.editHeaderRow}>
-          <View style={styles.editHeaderIcon}>
-            <Icon name={editingId as IconName} size={30} color={colors.text} />
+      <View style={flowStyles.screen} testID="screen-edit-appliance">
+        <View style={flowStyles.editHeaderRow}>
+          <View style={flowStyles.editIconBox}>
+            <Icon name={editingId as IconName} size={32} color={flow.ink} />
           </View>
-          <View style={styles.editHeaderText}>
-            <Text style={styles.title}>
-              {applianceLabel[editingId]}
-              {isCritical ? '  ·  essential service' : ''}
-            </Text>
-            <Text style={styles.subtitle}>
+          <View style={flowStyles.editHeaderText}>
+            <View style={flowStyles.editTitleRow}>
+              <Text style={flowStyles.editTitle}>{applianceLabel[editingId]}</Text>
+              {isCritical && (
+                <View style={flowStyles.editEssentialPill}>
+                  <Text style={flowStyles.editEssentialPillText}>✓ Essential service</Text>
+                </View>
+              )}
+            </View>
+            <Text style={flowStyles.editSubtitle}>
               {info ? `${info.low_w}-${info.high_w} W · available ${windowLen}h of this outage` : ''}
             </Text>
           </View>
         </View>
 
-        <View style={styles.infoBanner} testID="essential-note">
-          <Text style={styles.infoBannerText}>{essentialNoteFor(editingId, isCritical)}</Text>
+        <View style={flowStyles.editNoteBanner} testID="essential-note">
+          <Text style={flowStyles.editNoteText}>{essentialNoteFor(editingId, isCritical)}</Text>
         </View>
         {showSafetyCaution && (
-          <View style={styles.cautionBanner} testID="safety-caution-edit">
-            <Icon name="warning" size={18} color={colors.infeasible} />
-            <Text style={styles.cautionBannerText}>{SAFETY_NOTE[editingId]}</Text>
+          <View style={flowStyles.altCautionBanner} testID="safety-caution-edit">
+            <Icon name="warning" size={14} color={flow.coral} />
+            <Text style={flowStyles.altCautionText}>{SAFETY_NOTE[editingId]}</Text>
           </View>
         )}
         {renderStatusLine()}
 
-        <Text style={styles.bigValue} testID="appliance-hours-value">{hours}h required</Text>
-        <View style={styles.miniTrackWide}>
-          <View style={[styles.miniFillWide, {width: `${hoursRatio * 100}%`}]} />
+        <View style={flowStyles.editHeroWrap}>
+          <Text style={flowStyles.editHeroEyebrow}>Requested runtime</Text>
+          <Text style={flowStyles.editHeroNum} testID="appliance-hours-value">{hours}h required</Text>
+          <View style={flowStyles.editHeroTrack}>
+            <View style={[flowStyles.editHeroFill, {width: `${hoursRatio * 100}%`}]} />
+          </View>
         </View>
 
-        <TVFocusGuideView style={styles.stepperRow} autoFocus>
+        <TVFocusGuideView style={flowStyles.editStepperRow} autoFocus>
           <Pressable
             testID="btn-hours-minus"
             hasTVPreferredFocus
             accessibilityLabel="Decrease by 1 hour"
             onFocus={() => setFocus('minus')}
             onPress={guard(() => setApplianceHours(editingId, hours - 1))}
-            style={styles.stepperSlot}>
-            <FocusTile focused={focus === 'minus'} style={[styles.stepperButton, focus === 'minus' && styles.cardFocused]}>
-              <Text style={styles.stepperButtonText}>− 1h</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'minus'}
+              style={[flowStyles.editStepperButton, focus === 'minus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>− 1h</Text>
             </FocusTile>
           </Pressable>
           <Pressable
@@ -638,9 +651,11 @@ export const App = () => {
             accessibilityLabel="Increase by 1 hour"
             onFocus={() => setFocus('plus')}
             onPress={guard(() => setApplianceHours(editingId, hours + 1))}
-            style={styles.stepperSlot}>
-            <FocusTile focused={focus === 'plus'} style={[styles.stepperButton, focus === 'plus' && styles.cardFocused]}>
-              <Text style={styles.stepperButtonText}>+ 1h</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'plus'}
+              style={[flowStyles.editStepperButton, focus === 'plus' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>+ 1h</Text>
             </FocusTile>
           </Pressable>
           <Pressable
@@ -648,49 +663,52 @@ export const App = () => {
             accessibilityLabel="Turn off"
             onFocus={() => setFocus('zero')}
             onPress={guard(() => setApplianceHours(editingId, 0))}
-            style={styles.stepperSlot}>
-            <FocusTile focused={focus === 'zero'} style={[styles.stepperButton, focus === 'zero' && styles.cardFocused]}>
-              <Text style={styles.stepperButtonText}>Off</Text>
+            style={flowStyles.editStepperSlot}>
+            <FocusTile
+              focused={focus === 'zero'}
+              style={[flowStyles.editStepperButton, focus === 'zero' && flowStyles.editStepperButtonFocused]}>
+              <Text style={flowStyles.editStepperButtonText}>Off</Text>
             </FocusTile>
           </Pressable>
         </TVFocusGuideView>
-        <TVFocusGuideView style={styles.stepperRow}>
+
+        <TVFocusGuideView style={flowStyles.editToggleRow}>
           <Pressable
             testID="btn-toggle-essential"
             accessibilityLabel={isCritical ? 'Unmark as essential' : 'Mark as essential'}
             onFocus={() => setFocus('toggle-essential')}
-            onPress={guard(() => toggleEssential(editingId))}
-            style={styles.toggleSlot}>
+            onPress={guard(() => toggleEssential(editingId))}>
             <FocusTile
               focused={focus === 'toggle-essential'}
               style={[
-                styles.essentialToggle,
-                isCritical && styles.essentialToggleOn,
-                focus === 'toggle-essential' && styles.cardFocused,
+                flowStyles.editToggleButton,
+                isCritical && flowStyles.editToggleButtonOn,
+                focus === 'toggle-essential' && flowStyles.editToggleButtonFocused,
               ]}>
-              <Text style={[styles.stepperButtonText, isCritical && {color: colors.accent}]}>
+              <Text style={[flowStyles.editToggleText, isCritical && flowStyles.editToggleTextOn]}>
                 {isCritical ? 'Unmark as essential' : 'Mark as essential'}
               </Text>
             </FocusTile>
           </Pressable>
         </TVFocusGuideView>
+
         {plan && (
           <View
             style={[
-              styles.inlineStatus,
-              {backgroundColor: plan.requested.result.feasible ? colors.feasibleDim : colors.infeasibleDim},
+              flowStyles.editStatusPill,
+              {backgroundColor: plan.requested.result.feasible ? 'rgba(74,222,128,0.14)' : flow.coralSoft},
             ]}
             testID="appliance-edit-status">
             <Text
               style={[
-                styles.inlineStatusText,
-                {color: plan.requested.result.feasible ? colors.feasible : colors.infeasible},
+                flowStyles.editStatusText,
+                {color: plan.requested.result.feasible ? colors.feasible : flow.coral},
               ]}>
               Plan is now {plan.requested.result.feasible ? 'FEASIBLE' : 'INFEASIBLE'}
             </Text>
           </View>
         )}
-        <Text style={styles.footerHint}>Press Back to return to the overview</Text>
+        <Text style={flowStyles.altFooterHint}>Press Back to return to the overview</Text>
       </View>
     );
   }
@@ -1363,4 +1381,96 @@ const flowStyles = StyleSheet.create({
   altApplyText: {fontSize: type.caption, color: flow.inkDim, fontWeight: '700'},
 
   altFooterHint: {fontSize: type.caption, color: flow.inkFaint, marginTop: 4, marginBottom: spacing.sm},
+
+  // ---- Appliance-edit screen: same near-black / single-accent system as
+  // the overview and alternatives screens. Kept fully separate from the
+  // `styles` sheet below -- renderBatteryEdit still reads `styles` and is
+  // intentionally untouched by this pass. ----
+  editHeaderRow: {flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm},
+  editIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
+    backgroundColor: flow.surface,
+    borderWidth: 1,
+    borderColor: flow.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  editHeaderText: {flex: 1},
+  editTitleRow: {flexDirection: 'row', alignItems: 'center'},
+  editTitle: {fontSize: type.title, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
+  editEssentialPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,138,61,0.16)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    marginLeft: spacing.sm,
+  },
+  editEssentialPillText: {fontSize: 12, fontWeight: '800', color: flow.accent},
+  editSubtitle: {fontSize: type.small, color: flow.inkDim, marginTop: 2},
+
+  editNoteBanner: {
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: flow.line,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  editNoteText: {fontSize: type.small, color: flow.inkDim, lineHeight: 19},
+
+  editHeroWrap: {marginTop: spacing.md},
+  editHeroEyebrow: {
+    fontSize: type.label,
+    color: flow.inkFaint,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  editHeroNum: {fontSize: 64, fontWeight: '800', color: flow.ink, marginTop: 4, letterSpacing: -1},
+  editHeroTrack: {height: 10, borderRadius: 5, backgroundColor: flow.line, overflow: 'hidden', marginTop: spacing.sm},
+  editHeroFill: {height: '100%', borderRadius: 5, backgroundColor: flow.accent},
+
+  editStepperRow: {flexDirection: 'row', marginTop: spacing.md},
+  editStepperSlot: {marginRight: spacing.sm},
+  editStepperButton: {
+    backgroundColor: flow.surface,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: flow.line,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  editStepperButtonFocused: {borderColor: flow.accent},
+  editStepperButtonText: {fontSize: type.body, fontWeight: '800', color: flow.ink},
+
+  editToggleRow: {marginTop: spacing.sm},
+  editToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 2,
+    borderColor: flow.line,
+    backgroundColor: flow.surface,
+  },
+  editToggleButtonOn: {backgroundColor: flow.accent, borderColor: flow.accent},
+  editToggleButtonFocused: {borderColor: flow.accent},
+  editToggleText: {fontSize: type.body, fontWeight: '800', color: flow.ink},
+  editToggleTextOn: {color: flow.accentInk},
+
+  editStatusPill: {
+    alignSelf: 'flex-start',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    marginTop: spacing.md,
+  },
+  editStatusText: {fontSize: type.caption, fontWeight: '800'},
 });
