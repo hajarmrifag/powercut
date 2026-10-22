@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {TVFocusGuideView, useKeplerBackHandler} from '@amazon-devices/react-native-kepler';
+import Svg, {Path} from '@amazon-devices/react-native-svg';
 import {fetchDefaults, fetchPlan} from './api';
 import {Icon, type IconName} from './icons';
 import {applianceLabel, colors, flow, motion, radius, spacing, type} from './theme';
@@ -13,25 +14,22 @@ const APPLIANCE_IDS = ['fridge', 'router', 'lamp', 'phone', 'laptop', 'fan'];
 const DEFAULT_CRITICAL_IDS = new Set(['fridge', 'router']);
 
 // ---- Overview energy-flow geometry -------------------------------------
-// The overview's centerpiece approximates a Sankey ribbon from the
-// battery budget into each appliance's share of tonight's demand. There is
-// no SVG or curve-drawing dependency in this project (deliberately: no new
-// native module to verify on Vega under a hackathon deadline), so each
-// ribbon is drawn as a strip of thin rectangles whose top/bottom edges
-// follow a smoothstep interpolation between the source and destination
-// bands. That produces the same S-curve shape a bezier ribbon would, built
-// entirely from plain Views.
+// The overview's centerpiece is a Sankey ribbon from the battery budget
+// into each appliance's share of tonight's demand. Ribbons are drawn as
+// real vector paths via @amazon-devices/react-native-svg, Amazon's own
+// Kepler-platform fork of react-native-svg (declared Kepler module
+// com.amazon.kepler.svg_3@ISVG_0, version-matched to this project's exact
+// react-native/react-native-kepler versions) -- not a third-party native
+// module of unknown Vega support. An earlier build approximated the curve
+// as a strip of thin rectangles; at any slice density fine enough to look
+// smooth at the edges, the strip's flat-color slices still show faint
+// vertical seams in the fill under the device's rendering, which a true
+// path fill does not have.
 const FLOW_ROW_H = 26;
 const FLOW_GAP = 6;
 const FLOW_TOTAL_H = APPLIANCE_IDS.length * FLOW_ROW_H + (APPLIANCE_IDS.length - 1) * FLOW_GAP;
 const FLOW_RIBBON_W = 200;
 const FLOW_CAPSULE_W = 10;
-// High slice density is what actually buys smoothness here (stepping
-// width shrinks linearly with slice width), and it's cheap: this screen
-// is static between data changes, nothing here animates continuously, so
-// a few hundred plain absolutely-positioned Views cost nothing noticeable
-// to lay out once. Verified on-device below, not assumed.
-const FLOW_SLICES = 140;
 
 type FlowRow = {id: string; wh: number; isCritical: boolean};
 type FlowBand = {top: number; bottom: number};
@@ -54,26 +52,22 @@ function computeFlowBands(rows: FlowRow[], totalWh: number) {
   return {src, dest};
 }
 
-function smoothstep(t: number) {
-  const c = clamp(t, 0, 1);
-  return c * c * (3 - 2 * c);
-}
-
-function buildRibbonSlices(band: {src: FlowBand; dest: FlowBand}) {
+// Same curve construction as the approved flow-overview-v3 mockup: two
+// cubic beziers with control points at the horizontal midpoint, giving a
+// flat tangent at both the capsule and row ends (the standard Sankey-link
+// S-curve), closed into a single filled path per ribbon.
+function buildRibbonPath(band: {src: FlowBand; dest: FlowBand}): string {
   const {src, dest} = band;
-  const sliceW = FLOW_RIBBON_W / FLOW_SLICES;
-  // A small width fudge closes antialiasing seams between slices without
-  // meaningfully blurring the curve's shape at this slice density.
-  const overlap = Math.min(0.6, sliceW * 0.25);
-  const out: Array<{left: number; top: number; height: number; width: number}> = [];
-  for (let i = 0; i < FLOW_SLICES; i++) {
-    const tMid = (i + 0.5) / FLOW_SLICES;
-    const e = smoothstep(tMid);
-    const top = src.top + (dest.top - src.top) * e;
-    const bottom = src.bottom + (dest.bottom - src.bottom) * e;
-    out.push({left: i * sliceW, top, height: Math.max(1, bottom - top), width: sliceW + overlap});
-  }
-  return out;
+  const x0 = 0;
+  const x1 = FLOW_RIBBON_W;
+  const mid = (x0 + x1) / 2;
+  return [
+    `M ${x0} ${src.top}`,
+    `C ${mid} ${src.top} ${mid} ${dest.top} ${x1} ${dest.top}`,
+    `L ${x1} ${dest.bottom}`,
+    `C ${mid} ${dest.bottom} ${mid} ${src.bottom} ${x0} ${src.bottom}`,
+    'Z',
+  ].join(' ');
 }
 
 // No Intl/toLocaleString dependency on-device: a plain regex grouping is
@@ -445,26 +439,20 @@ export const App = () => {
             </>
           )}
 
-          <View style={flowStyles.ribbons} pointerEvents="none">
+          <Svg
+            width={FLOW_RIBBON_W}
+            height={FLOW_TOTAL_H}
+            style={flowStyles.ribbons}
+            pointerEvents="none">
             {flowRows.map((r, i) => (
-              <View key={r.id} style={StyleSheet.absoluteFill}>
-                {buildRibbonSlices({src: src[i], dest: dest[i]}).map((s, j) => (
-                  <View
-                    key={j}
-                    style={{
-                      position: 'absolute',
-                      left: s.left,
-                      top: s.top,
-                      width: s.width,
-                      height: s.height,
-                      backgroundColor: r.isCritical ? flow.accent : flow.flexible,
-                      opacity: r.isCritical ? 0.42 : 0.3,
-                    }}
-                  />
-                ))}
-              </View>
+              <Path
+                key={r.id}
+                d={buildRibbonPath({src: src[i], dest: dest[i]})}
+                fill={r.isCritical ? flow.accent : flow.flexible}
+                fillOpacity={r.isCritical ? 0.42 : 0.3}
+              />
             ))}
-          </View>
+          </Svg>
 
           <TVFocusGuideView style={flowStyles.rows} autoFocus>
             {flowRows.map((r, i) => {
