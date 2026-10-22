@@ -119,9 +119,9 @@ function alternativeSafetyCaution(changedIds: string[]): string | null {
   const concerns = touches
     .map(id => (id === 'fridge' ? 'food safety' : 'connectivity'))
     .join(' and ');
-  return (
-    `Verified against the energy math only -- not a guarantee of ${concerns}.`
-  );
+  const capitalized = concerns.charAt(0).toUpperCase() + concerns.slice(1);
+  const verb = touches.length > 1 ? 'are' : 'is';
+  return `Verified against the energy model only. ${capitalized} ${verb} not guaranteed.`;
 }
 
 function clamp(value: number, lo: number, hi: number) {
@@ -854,19 +854,26 @@ export const App = () => {
                     </Text>
                   </View>
 
-                  <View style={flowStyles.altChangesWrap}>
-                    {alt.changed.map(c => (
-                      <View key={c.id} style={flowStyles.altChangeRow}>
-                        <View style={flowStyles.rowIconSlot}>
-                          <Icon name={(applianceIconName[c.id] ?? c.id) as IconName} size={11} color={flow.ink} />
+                  {/* With exactly one changed appliance, the headline above
+                      ("Reduces: fridge: 12h -> 8h") already says everything
+                      this per-row list would -- skip the duplicate row and
+                      keep it only where it adds real value: breaking a
+                      multi-appliance change apart for easier reading. */}
+                  {alt.changed.length > 1 && (
+                    <View style={flowStyles.altChangesWrap}>
+                      {alt.changed.map(c => (
+                        <View key={c.id} style={flowStyles.altChangeRow}>
+                          <View style={flowStyles.rowIconSlot}>
+                            <Icon name={(applianceIconName[c.id] ?? c.id) as IconName} size={11} color={flow.ink} />
+                          </View>
+                          <Text style={flowStyles.altChangeLabel}>{applianceLabel[c.id] ?? c.id}</Text>
+                          <Text style={flowStyles.altChangeHours}>
+                            {c.from_hours}h <Text style={flowStyles.altChangeHoursNew}>→ {c.to_hours}h</Text>
+                          </Text>
                         </View>
-                        <Text style={flowStyles.altChangeLabel}>{applianceLabel[c.id] ?? c.id}</Text>
-                        <Text style={flowStyles.altChangeHours}>
-                          {c.from_hours}h <Text style={flowStyles.altChangeHoursNew}>→ {c.to_hours}h</Text>
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
+                      ))}
+                    </View>
+                  )}
 
                   <Text style={flowStyles.altStaysText}>
                     Stays as requested:{' '}
@@ -1268,7 +1275,7 @@ const flowStyles = StyleSheet.create({
   // ---- Alternatives screen: same near-black / single-accent system as
   // the overview, so the two screens read as one product rather than a
   // restyled original plus a leftover default-theme screen. ----
-  altTitle: {fontSize: type.title, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
+  altTitle: {fontSize: type.h1, fontWeight: '800', color: flow.ink, letterSpacing: -0.5},
   altExplainBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1276,11 +1283,12 @@ const flowStyles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: flow.line,
-    padding: spacing.sm,
-    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.xs,
   },
   altExplainIcon: {marginTop: 2, marginRight: spacing.xs},
-  altExplainText: {flex: 1, fontSize: type.small, color: flow.inkDim, lineHeight: 20},
+  altExplainText: {flex: 1, fontSize: type.small, color: flow.inkDim, lineHeight: 19},
 
   altSectionLabel: {
     fontSize: type.label,
@@ -1288,39 +1296,39 @@ const flowStyles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
     fontWeight: '700',
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    marginTop: spacing.xs,
+    marginBottom: 4,
   },
   altEmpty: {fontSize: type.small, color: flow.inkDim, lineHeight: 20},
 
   altRow: {flexDirection: 'row'},
-  altSlot: {flex: 1, marginHorizontal: spacing.xs, marginBottom: spacing.md},
+  altSlot: {flex: 1, marginHorizontal: spacing.xs},
   altCard: {
     backgroundColor: flow.surface,
     borderRadius: radius.md,
     borderWidth: 2,
     borderColor: 'transparent',
-    padding: spacing.md,
+    padding: spacing.sm,
   },
   altCardFocused: {borderColor: flow.accent},
 
-  altTierBadge: {alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill},
+  altTierBadge: {alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill},
   altTierBadgeText: {fontSize: 12, fontWeight: '800'},
-  altCardTitle: {fontSize: type.h1, fontWeight: '800', color: flow.ink, marginTop: spacing.xs},
-  altChangeHeadline: {fontSize: type.body, color: flow.accent, fontWeight: '700', marginTop: 2},
-  altCardSummary: {fontSize: type.caption, color: flow.inkDim, lineHeight: 18, marginTop: spacing.xs},
+  altCardTitle: {fontSize: type.h1, fontWeight: '800', color: flow.ink, marginTop: 4},
+  altChangeHeadline: {fontSize: type.body, color: flow.accent, fontWeight: '700', marginTop: 1},
+  altCardSummary: {fontSize: type.caption, color: flow.inkDim, lineHeight: 16, marginTop: 4},
 
-  altEnergyWrap: {marginTop: spacing.sm},
+  altEnergyWrap: {marginTop: spacing.xs},
   altEnergyTrack: {height: 10, borderRadius: 5, backgroundColor: flow.line, overflow: 'hidden'},
   altEnergyFill: {height: '100%', borderRadius: 5, backgroundColor: flow.accent},
-  altEnergyStats: {fontSize: 11, color: flow.inkFaint, marginTop: 4},
+  altEnergyStats: {fontSize: 11, color: flow.inkFaint, marginTop: 3},
   altEnergyStatsStrong: {color: flow.ink, fontWeight: '700'},
 
-  altChangesWrap: {marginTop: spacing.sm},
+  altChangesWrap: {marginTop: 4},
   altChangeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 5,
+    paddingVertical: 3,
     borderBottomWidth: 1,
     borderBottomColor: flow.line,
   },
@@ -1328,7 +1336,7 @@ const flowStyles = StyleSheet.create({
   altChangeHours: {fontSize: type.small, color: flow.inkDim, fontWeight: '600'},
   altChangeHoursNew: {color: flow.ink, fontWeight: '800'},
 
-  altStaysText: {fontSize: type.caption, color: flow.inkFaint, lineHeight: 17, marginTop: spacing.sm},
+  altStaysText: {fontSize: type.caption, color: flow.inkFaint, lineHeight: 15, marginTop: 4},
   altStaysStrong: {color: flow.accent, fontWeight: '700'},
 
   altCautionBanner: {
@@ -1336,22 +1344,23 @@ const flowStyles = StyleSheet.create({
     alignItems: 'flex-start',
     backgroundColor: flow.coralSoft,
     borderRadius: radius.sm,
-    padding: spacing.xs,
-    marginTop: spacing.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    marginTop: 4,
   },
   altCautionText: {flex: 1, fontSize: 11.5, color: flow.coral, fontWeight: '600', marginLeft: 6, lineHeight: 15},
 
-  altVerifiedText: {fontSize: type.caption, fontWeight: '700', marginTop: spacing.sm},
+  altVerifiedText: {fontSize: type.caption, fontWeight: '700', marginTop: 4},
 
   altApplyRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: spacing.sm,
-    paddingTop: spacing.xs,
+    marginTop: 4,
+    paddingTop: 4,
     borderTopWidth: 1,
     borderTopColor: flow.line,
   },
   altApplyText: {fontSize: type.caption, color: flow.inkDim, fontWeight: '700'},
 
-  altFooterHint: {fontSize: type.caption, color: flow.inkFaint, marginTop: 4, marginBottom: spacing.md},
+  altFooterHint: {fontSize: type.caption, color: flow.inkFaint, marginTop: 4, marginBottom: spacing.sm},
 });

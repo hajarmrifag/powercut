@@ -331,7 +331,7 @@ describe('App', () => {
     // *currently* has marked essential (router, here) -- it must not read
     // as a food-safety endorsement for the fridge hours it reduces.
     expect(screen.getByTestId('alt-safety-caution-A')).toBeTruthy();
-    expect(screen.getByText(/not a guarantee of food safety/)).toBeTruthy();
+    expect(screen.getByText(/Food safety is not guaranteed/)).toBeTruthy();
   });
 
   it('shows no safety caution on a repair that leaves fridge and router untouched', async () => {
