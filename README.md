@@ -216,22 +216,22 @@ Virtual Device output, not just desktop assumptions.
 
 ## Tests
 
-292 automated checks across the stack.
+295 automated checks across the stack.
 
 **Frontend + engine** (Jest + TypeScript + ESLint):
 ```
 cd powercut-app
 npm install
-npm test        # 250 tests:
-                 #  - 19 UI tests: load, edit an appliance, edit battery,
+npm test        # 253 tests:
+                 #  - 21 UI tests: load, edit an appliance, edit battery,
                  #    view/apply alternatives, honest "no repair found",
                  #    essential-service badges and the mark/unmark-essential
                  #    toggle (Phase B), repair tier display, rapid-input
                  #    reliability, per-screen error surfacing
-                 #  - 231 differential tests: the TypeScript engine
+                 #  - 232 differential tests: the TypeScript engine
                  #    (src/engine/) checked field-for-field against the
-                 #    real Python engine's output across 230 scenarios
-                 #    (20 fixed edge cases + 210 randomized, 67 of which
+                 #    real Python engine's output across 231 scenarios
+                 #    (21 fixed edge cases + 210 randomized, 67 of which
                  #    also vary the household's essentials selection); see
                  #    docs/ENGINE_PORT.md and docs/PHASE_B.md
 npx tsc --noEmit
@@ -352,10 +352,11 @@ Three more documents under `docs/` prepare for, but do not perform,
 submission: `VEGA_SDK_FRICTION_LOG.md` (real friction hit while building on
 Vega, with evidence, for anyone continuing this project or asked for SDK
 feedback), `DEVPOST_SUBMISSION_CHECKLIST.md` (what's left before
-submitting, including the still-open license and repo-visibility
-decisions), and `DEMO_VIDEO_STORYBOARD.md` (a shot-by-shot script for a
-sub-three-minute demo of the real running product). The repository remains
-private and nothing has been submitted.
+submitting), and `DEMO_VIDEO_STORYBOARD.md` (a shot-by-shot script for a
+sub-three-minute demo of the real running product). This repository's own
+original source is MIT licensed (see `LICENSE`); the repository's
+visibility and submission status are separate decisions not made by this
+README.
 
 ## Scope and limitations
 
@@ -427,3 +428,14 @@ the device's real 1080p/2x scale, rapid-input button-press races, and
 reinstall-and-relaunch checks with the reference backend confirmed stopped
 so the "no server" claim is demonstrated, not just asserted (see
 "Reliability notes" above and `docs/VEGA_SDK_FRICTION_LOG.md`).
+
+## License
+
+This repository's own source (everything under `src/`, `engine/`,
+`backend/`, `test/`, and the docs in `docs/`) is original work written for
+this hackathon and is MIT licensed; see `LICENSE`. That license covers only
+this project's own code. Building and running it requires the Amazon Vega
+SDK and the `@amazon-devices/*` packages (declared in `package.json`,
+fetched from the public npm registry, and excluded from this repository
+via `.gitignore`/`node_modules`), which are Amazon's own SDK and remain
+under Amazon's own terms; nothing in this repository relicenses them.

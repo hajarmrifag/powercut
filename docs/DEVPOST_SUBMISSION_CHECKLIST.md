@@ -39,18 +39,20 @@ rules pages can change and this list does not re-fetch it.
       the SDK and build themselves, or whether the demo video is the
       primary artifact for judging (see §5); if the former, consider
       whether SDK install steps belong in the README too.
-- [ ] Backend run step requires a second terminal (`python3 server.py`)
-      and is local-only (`127.0.0.1:8766`). Make sure this is unmissable
-      in the instructions, since the app will show nothing useful without
-      it running.
+- [x] Outdated as of Phase A: the shipped app no longer needs the Python
+      backend. `src/engine/` runs the solver/verifier/repair search
+      in-process inside the Vega app; `backend/server.py` is kept only as
+      the reference implementation and differential-test oracle, and is
+      optional to run at all (see README, "Reference implementation and
+      test oracle"). Confirmed on-device with the backend stopped.
 
 ## 3. Licensing
 
-- [ ] **No `LICENSE` file exists in this repository yet.** This was
-      flagged as an open decision during Phase 1 and has not been revisited
-      since. **Needs your decision**: pick a license (MIT and Apache-2.0
-      are the common defaults for a submission like this) or confirm none
-      is wanted/required.
+- [x] **`LICENSE` added**: MIT, copyright 2026 Hajar Mrifag. Covers this
+      repository's own original source only (`src/`, `engine/`, `backend/`,
+      `test/`, docs); the Amazon Vega SDK and `@amazon-devices/*` packages
+      remain under Amazon's own terms and are not redistributed by this
+      repository (see README, "License").
 - [ ] **VERIFY** whether the hackathon rules require an OSS license for
       eligibility or judging, or whether a private/unlicensed repo is
       acceptable for a hackathon entry.
@@ -110,8 +112,9 @@ re-derive the description from scratch.
 
 ## Decisions that need you, summarized
 
-1. **License**: pick one (or explicitly decide against one) for the
-   `LICENSE` file.
+1. ~~**License**: pick one (or explicitly decide against one) for the
+   `LICENSE` file.~~ Done: MIT, see `LICENSE` and README's "License"
+   section.
 2. **Repo visibility**: public vs. private-with-reviewer-access, and
    timing, per the current rules.
 3. **Confirm the current rules page** hasn't changed anything else since
