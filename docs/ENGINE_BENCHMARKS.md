@@ -167,8 +167,10 @@ host-noise issue above.
 
 - The optimization reduces actual engine work in the worst case by
   ~18%, proven by direct call-count measurement, with zero behavior
-  change (164/164 differential tests, including this exact scenario,
-  still pass byte-for-byte against the untouched Python reference).
+  change. The 164/164 differential result recorded in this historical
+  benchmark phase included this exact scenario; the current fixture has
+  231 scenarios and 232 differential Jest checks, still compared
+  byte-for-byte against the untouched Python reference.
 - A clean, low-noise wall-clock confirmation of that ~18% was not
   obtained in this session due to shared-machine load, and is flagged
   here rather than papered over. Re-running this benchmark on a quieter

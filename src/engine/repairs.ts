@@ -253,7 +253,7 @@ export function findRepairs(problem: Problem, maxResults = 2, criticalIds: Set<s
   // them would yield the same candidates tier 1 already found (and `seen`
   // would discard the duplicates anyway) or the same empty result tier 1
   // already got. See docs/ENGINE_PORT.md and the differential suite
-  // (163 cases, including this exact fallback path) for the verification
+  // (231 current cases, including this exact fallback path) for the verification
   // that this produces byte-identical output to the unoptimized version.
   const tier2New = tagByActualCriticality(
     rank([
