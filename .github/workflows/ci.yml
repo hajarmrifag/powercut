@@ -42,7 +42,7 @@ jobs:
   python-reference:
     name: Python reference and differential fixture
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
