@@ -1,0 +1,77 @@
+name: Host CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typescript:
+    name: TypeScript, lint, and Jest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Jest suite
+        run: npm run test:ci
+
+  python-reference:
+    name: Python reference and differential fixture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Test reference server
+        run: python3 backend/test_server.py
+
+      - name: Test solver and verifier
+        run: python3 engine/run_experiment.py
+
+      - name: Test repair search
+        run: python3 engine/test_repairs.py
+
+      - name: Regenerate Python oracle fixtures
+        run: python3 engine/differential/generate_cases.py
+
+      - name: Verify committed differential fixture is current
+        run: git diff --exit-code -- test/fixtures/differential-cases.json
+
+  host-ci-scope:
+    name: Vega device boundary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record scope
+        run: |
+          echo "Host CI does not build, launch, or benchmark the proprietary Vega runtime."
+          echo "Use the documented Vega Virtual Device workflow for device-only validation."

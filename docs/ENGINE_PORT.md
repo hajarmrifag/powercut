@@ -33,7 +33,8 @@ with the Python server never started, proven below.
 
 Not by inspection. `engine/differential/generate_cases.py` calls the
 **real, unmodified Python engine** (via `backend.server.build_plan` /
-`default_config`, exactly as the old backend did) across 163 scenarios:
+`default_config`, exactly as the old backend did) across the 163 scenarios in
+the original Phase A fixture:
 
 - 13 hand-picked fixed cases: the shipped default (infeasible), both
   known single-appliance repairs (laptop→1h, fan→1h), the tied-repair
@@ -55,7 +56,10 @@ stripping only the fields that cannot and need not match across
 languages (`nonce`, `instance`, `time_utc`, `elapsed_ms`,
 `states_visited`).
 
-**Result: 164/164 pass** (163 cases + 1 sanity check on case count).
+**Historical Phase A result: 164/164 pass** (163 cases + 1 sanity check on
+case count). The fixture was expanded in later phases; the current tree has
+231 scenarios and 232 differential Jest checks. See `docs/QUALITY_SPRINT.md`
+for the count reconciliation.
 This caught one real bug during development: the TS `fixture()` port
 initially omitted the `synthetic`/`assumptions` metadata fields the
 Python original includes on every `problem` object: fixed, reverified.
@@ -164,8 +168,8 @@ already got.
 
 **Result:** 629 solve() calls instead of 770, an 18.3% reduction,
 measured by direct call-counting immediately before and after the
-change, not by timing. Full differential suite (164/164), every Python
-regression test, lint, and type-check all still pass unchanged; see
+change, not by timing. The then-current Phase A differential suite (164/164),
+every Python regression test, lint, and type-check all passed unchanged; see
 `docs/ENGINE_BENCHMARKS.md` for the on-device wall-clock re-benchmark,
 including an honest account of why that specific re-benchmark came back
 noisy (shared-machine load, not a regression: verified with a same-

@@ -54,22 +54,26 @@ below), not assumed from the code structure alone.
   `critical_ids`/`critical_reduced` genuinely reflect a custom selection
   rather than the fixed default.
 - **Differential suite**, `test/engine-differential.spec.ts`: extended
-  from 163 to **230 cases**: the original 163 (each still run with
+  at this phase from 163 to **230 cases**: the original 163 (each still run with
   `critical_ids` omitted, exercising the unchanged default-essentials
   path) plus 7 hand-picked and 60 randomized scenarios
   (`engine/differential/generate_cases.py`'s
   `randomized_critical_ids_cases`) that vary the essentials selection
   itself (empty, full, single-appliance, and random subsets), checked
   byte-for-byte against the same now-parameterized Python reference.
-  **230/230 pass.**
+  **Historical Phase B result: 230/230 cases passed.** A later mixed-tier
+  regression brought the current fixture to 231 scenarios; see
+  `docs/QUALITY_SPRINT.md`.
 - **Jest UI tests**, `test/App.spec.tsx`: 4 new tests; the toggle's
   label and copy reflect live state, toggling sends the updated
   `critical_ids` to the engine (checked via the mocked `fetchPlan`'s own
   call arguments), the alternatives screen correctly renders and labels
   a repair that's only possible once fridge is unmarked, and
   toggling-then-untoggling round-trips back to the original set.
-- **250/250 Jest tests pass** (19 App + 1 case-count sanity + 230
-  differential). `tsc` and lint clean.
+- **Historical Phase B result: 250/250 Jest tests passed** (19 App + 1
+  case-count sanity + 230 differential). `tsc` and lint were clean at this
+  phase. The current count is intentionally higher and is reconciled in
+  `docs/QUALITY_SPRINT.md`.
 
 ## On-device verification (Vega Virtual Device, backend still stopped)
 
